@@ -14,4 +14,8 @@
       Blockchain data: Mempool.space.
     </em>
   </p>
+  <p>
+    The exchange data for BTC is stored as daily candles going back to ~2012.
+    The program handles fetch and local storage of the data with an SQLite database.
+  </p>
 </div>
