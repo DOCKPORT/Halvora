@@ -1,10 +1,17 @@
-use iced::widget::{container, row, rule};
-use iced::{Element, window, Length};
+use iced::widget::row;
+use iced::{Element, window, Font, Length};
 use iced::window::Position;
-use crate::modules::ui::theme;
 use crate::modules::ui::scaling::Scaling;
+use crate::modules::ui::mainwindow::dashboard_layout::dashboard;
 use crate::modules::ui::mainwindow::sidebar::halving_sidebar;
 use crate::modules::ui::mainwindow::sidebar::blockchain_sidebar;
+
+/// Embed the GeistMono font as fallback — the system-installed SemiBold
+/// variant will be used via the Font weight setting.
+const GEIST_MONO_BYTES: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/Font/geist-font/GeistMono/ttf/GeistMono-Regular.ttf"
+));
 
 pub fn run() -> iced::Result {
     let scaling = Scaling::global();
@@ -21,6 +28,8 @@ pub fn run() -> iced::Result {
     };
 
     iced::application(Halvora::new, update, view)
+        .font(GEIST_MONO_BYTES)
+        .default_font(Font::with_name("Geist Mono"))
         .window(window_settings)
         .run()
 }
@@ -40,33 +49,22 @@ impl Halvora {
 }
 
 #[derive(Debug, Clone)]
-pub enum Message {}
+pub enum Message {
+    HalvingSelected(u32),
+}
 
-fn update(_state: &mut Halvora, _message: Message) {}
+fn update(_state: &mut Halvora, message: Message) {
+    match message {
+        Message::HalvingSelected(_n) => {
+            // No action yet — placeholder for future functionality
+        }
+    }
+}
 
 fn view(_state: &Halvora) -> Element<'_, Message> {
-    // Orange border separator between sidebars and content
-    let border = |_theme: &iced::Theme| -> rule::Style {
-        rule::Style {
-            color: theme::SIDEBAR_BORDER_COLOR,
-            fill_mode: rule::FillMode::Full,
-            radius: iced::border::Radius::default(),
-            snap: false,
-        }
-    };
-
     row![
         halving_sidebar::view(),
-        rule::vertical(2).style(border),
-        container(iced::widget::column![])
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .style(|_theme| {
-                container::Style::default().background(
-                    iced::Background::Color(theme::MAINWINDOW_BACKGROUND)
-                )
-            }),
-        rule::vertical(2).style(border),
+        dashboard::view(),
         blockchain_sidebar::view(),
     ]
     .width(Length::Fill)
