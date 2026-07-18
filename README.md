@@ -1,6 +1,6 @@
 <div align="center">
   <br/>
-  <img src="Halvora_Logo/Halvora.png" alt="Halvora Logo" width="500"/>
+  <img src="Halvora_Logo/Halvora.png?v=2" alt="Halvora Logo" width="500"/>
   <br/><br/>
 </div>
 
