@@ -40,3 +40,4 @@ Bitcoin's block reward halves 32 times until the 33rd halving reduces it to 0 sa
 | Exchange Data | **BitStamp** (by Robinhood) |
 | Blockchain Data | **Mempool.space** |
 | Local Database | **SQLite** |
+| Official Font | **Geist Mono** |

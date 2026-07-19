@@ -34,17 +34,21 @@ pub fn run() -> iced::Result {
         .run()
 }
 
-struct Halvora;
+struct Halvora {
+    selected_halving: Option<u32>,
+}
 
 impl Default for Halvora {
     fn default() -> Self {
-        Self
+        Self {
+            selected_halving: None,
+        }
     }
 }
 
 impl Halvora {
     fn new() -> Self {
-        Self
+        Self::default()
     }
 }
 
@@ -53,18 +57,18 @@ pub enum Message {
     HalvingSelected(u32),
 }
 
-fn update(_state: &mut Halvora, message: Message) {
+fn update(state: &mut Halvora, message: Message) {
     match message {
-        Message::HalvingSelected(_n) => {
-            // No action yet — placeholder for future functionality
+        Message::HalvingSelected(n) => {
+            state.selected_halving = Some(n);
         }
     }
 }
 
-fn view(_state: &Halvora) -> Element<'_, Message> {
+fn view(state: &Halvora) -> Element<'_, Message> {
     row![
-        halving_sidebar::view(),
-        dashboard::view(),
+        halving_sidebar::view(state.selected_halving),
+        dashboard::view(state.selected_halving),
         blockchain_sidebar::view(),
     ]
     .width(Length::Fill)
