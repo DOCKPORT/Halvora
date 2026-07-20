@@ -40,14 +40,29 @@ pub fn run() -> iced::Result {
 struct Halvora {
     selected_halving: Option<u32>,
     current_tip_height: u32,
+    current_subsidy_sat: i64,
+    next_halving_eta: String,
+    coins_issued: String,
+    percentage_issued: String,
+    remaining_issuance: String,
 }
 
 impl Halvora {
     fn new() -> Self {
         let current_tip_height = Self::load_tip_height();
+        let current_subsidy_sat = Self::load_current_subsidy();
+        let next_halving_eta = crate::modules::compute::halving_eta::next_halving_eta(current_tip_height);
+        let coins_issued = crate::modules::compute::coins_issued::coins_issued(current_tip_height);
+        let percentage_issued = crate::modules::compute::coins_issued::percentage_issued(current_tip_height);
+        let remaining_issuance = crate::modules::compute::coins_issued::remaining_issuance(current_tip_height);
         Self {
             selected_halving: None,
             current_tip_height,
+            current_subsidy_sat,
+            next_halving_eta,
+            coins_issued,
+            percentage_issued,
+            remaining_issuance,
         }
     }
 
@@ -62,6 +77,22 @@ impl Halvora {
                 |row| row.get(0),
             ) {
                 return height;
+            }
+        }
+        0
+    }
+
+    /// Query the current subsidy (sats) from the database.
+    fn load_current_subsidy() -> i64 {
+        let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
+        let db_path = base.join("Halvora").join("Mempool").join("blocks.db");
+        if let Ok(conn) = Connection::open(&db_path) {
+            if let Ok(subsidy) = conn.query_row(
+                "SELECT subsidy FROM current_tip LIMIT 1",
+                [],
+                |row| row.get(0),
+            ) {
+                return subsidy;
             }
         }
         0
@@ -86,6 +117,11 @@ fn update(state: &mut Halvora, message: Message) {
         Message::Tick => {
             crate::modules::api::mempool::rest::halve_blocks::fetch_and_store();
             state.current_tip_height = Halvora::load_tip_height();
+            state.current_subsidy_sat = Halvora::load_current_subsidy();
+            state.next_halving_eta = crate::modules::compute::halving_eta::next_halving_eta(state.current_tip_height);
+            state.coins_issued = crate::modules::compute::coins_issued::coins_issued(state.current_tip_height);
+            state.percentage_issued = crate::modules::compute::coins_issued::percentage_issued(state.current_tip_height);
+            state.remaining_issuance = crate::modules::compute::coins_issued::remaining_issuance(state.current_tip_height);
         }
     }
 }
@@ -94,7 +130,7 @@ fn view(state: &Halvora) -> Element<'_, Message> {
     row![
         halving_sidebar::view(state.selected_halving),
         dashboard::view(state.selected_halving),
-        blockchain_sidebar::view(state.current_tip_height),
+        blockchain_sidebar::view(state.current_tip_height, state.current_subsidy_sat, &state.next_halving_eta, &state.coins_issued, &state.percentage_issued, &state.remaining_issuance),
     ]
     .width(Length::Fill)
     .height(Length::Fill)

@@ -20,8 +20,6 @@ struct BlockJson {
     timestamp: u64,
 }
 
-/// The `/api/blocks` endpoint returns an array of block objects.
-type BlocksJson = Vec<BlockJson>;
 
 // ── Public entry point ──────────────────────────────────────────────────
 
@@ -103,11 +101,6 @@ pub fn fetch_and_store() {
         ).ok();
     }
 
-    // Replace the single current-tip row with the latest tip.
-    if let Err(e) = conn.execute("DELETE FROM current_tip", []) {
-        eprintln!("[mempool] failed to clear current_tip: {}", e);
-        return;
-    }
     // Derive the current subsidy from the most recent halving ≤ tip height.
     let subsidy: i64 = conn
         .query_row(
@@ -117,11 +110,12 @@ pub fn fetch_and_store() {
         )
         .unwrap_or(0);
 
+    // Update the single current-tip row (already exists from first sync).
     if let Err(e) = conn.execute(
-        "INSERT INTO current_tip (height, timestamp, subsidy) VALUES (?1, ?2, ?3)",
+        "UPDATE current_tip SET height = ?1, timestamp = ?2, subsidy = ?3",
         rusqlite::params![tip.height, tip.timestamp as i64, subsidy],
     ) {
-        eprintln!("[mempool] failed to insert current_tip: {}", e);
+        eprintln!("[mempool] failed to update current_tip: {}", e);
         return;
     }
 
@@ -161,9 +155,9 @@ fn db_path() -> PathBuf {
 
 /// Fetch the latest block from the mempool.space API.
 fn fetch_latest_block() -> Option<BlockJson> {
-    let url = "https://mempool.space/api/blocks";
+    let url = "https://mempool.space/api/blocks/tip";
     let text = reqwest::blocking::get(url).ok()?.text().ok()?;
-    let blocks: BlocksJson = serde_json::from_str(&text).ok()?;
+    let blocks: Vec<BlockJson> = serde_json::from_str(&text).ok()?;
     blocks.into_iter().next()
 }
 
