@@ -14,40 +14,75 @@ fn ordinal_suffix(n: u32) -> &'static str {
     }
 }
 
-pub fn view<'a>(selected_halving: Option<u32>) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
+pub fn view<'a>(selected_halving: Option<u32>, yoy_selected: bool) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
     let placeholder_style = |_theme: &iced::Theme| -> container::Style {
         container::Style::default()
             .background(iced::Background::Color(theme::SIDEBAR_BACKGROUND))
             .border(border::rounded(8).color(theme::DASHBOARD_PLACEHOLDER_BORDER).width(1.5))
     };
 
-    let metrics_label = selected_halving.map_or(
-        iced::widget::column![],
-        |n| {
-            column![
-                text(format!("{}{}", n, ordinal_suffix(n)))
-                    .size(18)
-                    .font(iced::Font {
-                        family: iced::font::Family::Name("Geist Mono"),
-                        weight: iced::font::Weight::Normal,
-                        stretch: iced::font::Stretch::Normal,
-                        style: iced::font::Style::Normal,
-                    })
-                    .color(theme::HALVING_BUTTON_TEXT)
-                    .width(Length::Fill),
-                text("HALVING")
-                    .size(18)
-                    .font(iced::Font {
-                        family: iced::font::Family::Name("Geist Mono"),
-                        weight: iced::font::Weight::Normal,
-                        stretch: iced::font::Stretch::Normal,
-                        style: iced::font::Style::Normal,
-                    })
-                    .color(theme::HALVING_BUTTON_TEXT)
-                    .width(Length::Fill),
-            ]
-        },
-    );
+    let metrics_label = if yoy_selected {
+        column![
+            text("Year")
+                .size(18)
+                .font(iced::Font {
+                    family: iced::font::Family::Name("Geist Mono"),
+                    weight: iced::font::Weight::Normal,
+                    stretch: iced::font::Stretch::Normal,
+                    style: iced::font::Style::Normal,
+                })
+                .color(theme::HALVING_BUTTON_TEXT)
+                .width(Length::Fill),
+            text("Over")
+                .size(18)
+                .font(iced::Font {
+                    family: iced::font::Family::Name("Geist Mono"),
+                    weight: iced::font::Weight::Normal,
+                    stretch: iced::font::Stretch::Normal,
+                    style: iced::font::Style::Normal,
+                })
+                .color(theme::HALVING_BUTTON_TEXT)
+                .width(Length::Fill),
+            text("Year")
+                .size(18)
+                .font(iced::Font {
+                    family: iced::font::Family::Name("Geist Mono"),
+                    weight: iced::font::Weight::Normal,
+                    stretch: iced::font::Stretch::Normal,
+                    style: iced::font::Style::Normal,
+                })
+                .color(theme::HALVING_BUTTON_TEXT)
+                .width(Length::Fill),
+        ]
+    } else {
+        selected_halving.map_or(
+            iced::widget::column![],
+            |n| {
+                column![
+                    text(format!("{}{}", n, ordinal_suffix(n)))
+                        .size(18)
+                        .font(iced::Font {
+                            family: iced::font::Family::Name("Geist Mono"),
+                            weight: iced::font::Weight::Normal,
+                            stretch: iced::font::Stretch::Normal,
+                            style: iced::font::Style::Normal,
+                        })
+                        .color(theme::HALVING_BUTTON_TEXT)
+                        .width(Length::Fill),
+                    text("HALVING")
+                        .size(18)
+                        .font(iced::Font {
+                            family: iced::font::Family::Name("Geist Mono"),
+                            weight: iced::font::Weight::Normal,
+                            stretch: iced::font::Stretch::Normal,
+                            style: iced::font::Style::Normal,
+                        })
+                        .color(theme::HALVING_BUTTON_TEXT)
+                        .width(Length::Fill),
+                ]
+            },
+        )
+    };
 
     let metrics = container(
         iced::widget::column![

@@ -34,11 +34,22 @@ fn info_card<'a>(title: &'a str, value: String) -> Element<'a, crate::modules::u
         .into()
 }
 
-pub fn view<'a>(current_tip_height: u32, current_subsidy_sat: i64, next_halving_eta: &str, coins_issued: &str, percentage_issued: &str, remaining_issuance: &str) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
-    let height_str = current_tip_height.to_string();
+pub fn view<'a>(current_tip_height: u32, current_subsidy_sat: i64, next_halving_eta: &str, blocks_to_next_halving: &str, coins_issued: &str, percentage_issued: &str, remaining_issuance: &str, live_price: Option<f64>, subsidy_value: &str, sats_per_usd: &str, all_time_high: &str) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
+    fn fmt_commas(n: u32) -> String {
+        let s = n.to_string();
+        let mut result = String::with_capacity(s.len() + s.len() / 3);
+        for (i, c) in s.chars().enumerate() {
+            if i > 0 && (s.len() - i) % 3 == 0 {
+                result.push(',');
+            }
+            result.push(c);
+        }
+        result
+    }
+    let height_str = fmt_commas(current_tip_height);
     let subsidy_btc = current_subsidy_sat as f64 / 100_000_000.0;
     let subsidy_str = if current_subsidy_sat == 0 {
-        "xxxxx".to_string()
+        "\u{2014}".to_string()
     } else {
         format!("{:.8}", subsidy_btc)
     };
@@ -48,7 +59,11 @@ pub fn view<'a>(current_tip_height: u32, current_subsidy_sat: i64, next_halving_
         iced::widget::space().height(Length::Fixed(8.0)).into(),
         info_card("Current Subsidy", subsidy_str),
         iced::widget::space().height(Length::Fixed(8.0)).into(),
+        info_card("Subsidy Value", subsidy_value.to_string()),
+        iced::widget::space().height(Length::Fixed(8.0)).into(),
         info_card("Next Halving", next_halving_eta.to_string()),
+        iced::widget::space().height(Length::Fixed(8.0)).into(),
+        info_card("Blocks to Halving", blocks_to_next_halving.to_string()),
         iced::widget::space().height(Length::Fixed(8.0)).into(),
         info_card("Coins Minted", coins_issued.to_string()),
         iced::widget::space().height(Length::Fixed(8.0)).into(),
@@ -56,9 +71,16 @@ pub fn view<'a>(current_tip_height: u32, current_subsidy_sat: i64, next_halving_
         iced::widget::space().height(Length::Fixed(8.0)).into(),
         info_card("Remaining Issuance", remaining_issuance.to_string()),
         iced::widget::space().height(Length::Fixed(8.0)).into(),
-        info_card("Sats per USD", "xxxxx".to_string()),
+        info_card(
+            "Spot Price",
+            live_price
+                .map(|p| format!("${:.2}", p))
+                .unwrap_or_else(|| "\u{2014}".to_string()),
+        ),
         iced::widget::space().height(Length::Fixed(8.0)).into(),
-        info_card("All-Time High", "xxxxx".to_string()),
+        info_card("Sats per USD", sats_per_usd.to_string()),
+        iced::widget::space().height(Length::Fixed(8.0)).into(),
+        info_card("All-Time High", all_time_high.to_string()),
     ])
     .spacing(0)
     .padding(iced::Padding::new(0.0).left(21.0).right(21.0));
