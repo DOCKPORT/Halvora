@@ -66,7 +66,7 @@ impl Halvora {
 
         Self {
             selected_halving: None,
-            yoy_selected: false,
+            yoy_selected: true,
             current_tip_height,
             current_subsidy_sat,
             next_halving_eta,

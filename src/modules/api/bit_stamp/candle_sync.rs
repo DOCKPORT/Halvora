@@ -95,20 +95,22 @@ pub fn fetch_and_store() {
 
     let start_ts = latest_ts.map(|t| t + 86_400).unwrap_or(EPOCH_START);
 
-    // Today's midnight (00:00:00 UTC).
+    // Yesterday's midnight (00:00:00 UTC) — the last completed daily candle.
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0);
     let today_midnight = now - (now % 86_400);
+    let yesterday_midnight = today_midnight - 86_400;
 
-    if start_ts >= today_midnight {
+    if start_ts > yesterday_midnight {
         eprintln!("[bitstamp] already up to date (latest: {})", latest_ts.unwrap_or(0));
         return;
     }
 
     // Compute how many days we need to fetch, with a 3-candle buffer.
-    let gap_days = (today_midnight - start_ts) / 86_400;
+    // We only request completed candles (up to yesterday_midnight inclusive).
+    let gap_days = (yesterday_midnight - start_ts) / 86_400 + 1;
 
     if gap_days <= 0 {
         eprintln!("[bitstamp] already up to date (latest: {})", latest_ts.unwrap_or(0));
@@ -120,10 +122,10 @@ pub fn fetch_and_store() {
         gap_days
     );
 
-    // Paginate backwards from today_midnight, using an appropriate limit per page.
+    // Paginate backwards from yesterday_midnight, using an appropriate limit per page.
     let mut total_inserted = 0u64;
     let mut remaining = gap_days + 3; // include buffer
-    let mut cursor = today_midnight;
+    let mut cursor = yesterday_midnight;
 
     while remaining > 0 {
         let limit = remaining.min(PAGE_SIZE);
