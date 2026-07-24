@@ -1,6 +1,8 @@
 use iced::widget::{column, container, row, text};
 use iced::{border, Element, Length};
+use crate::modules::ui::line_chart::{LineChart, LineChartState};
 use crate::modules::ui::theme;
+use crate::modules::ui::volume_chart::VolumeChart;
 use super::metric_labels;
 
 fn ordinal_suffix(n: u32) -> &'static str {
@@ -15,7 +17,11 @@ fn ordinal_suffix(n: u32) -> &'static str {
     }
 }
 
-pub fn view<'a>(selected_halving: Option<u32>, yoy_selected: bool) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
+pub fn view<'a>(
+    selected_halving: Option<u32>,
+    yoy_selected: bool,
+    chart_state: &'a LineChartState,
+) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
     let placeholder_style = |_theme: &iced::Theme| -> container::Style {
         container::Style::default()
             .background(iced::Background::Color(theme::SIDEBAR_BACKGROUND))
@@ -33,7 +39,7 @@ pub fn view<'a>(selected_halving: Option<u32>, yoy_selected: bool) -> Element<'a
                     style: iced::font::Style::Normal,
                 })
                 .color(theme::HALVING_BUTTON_TEXT)
-                .width(Length::Shrink),
+                .width(Length::Fill),
             text("Over")
                 .size(18)
                 .font(iced::Font {
@@ -43,7 +49,7 @@ pub fn view<'a>(selected_halving: Option<u32>, yoy_selected: bool) -> Element<'a
                     style: iced::font::Style::Normal,
                 })
                 .color(theme::HALVING_BUTTON_TEXT)
-                .width(Length::Shrink),
+                .width(Length::Fill),
             text("Year")
                 .size(18)
                 .font(iced::Font {
@@ -53,12 +59,12 @@ pub fn view<'a>(selected_halving: Option<u32>, yoy_selected: bool) -> Element<'a
                     style: iced::font::Style::Normal,
                 })
                 .color(theme::HALVING_BUTTON_TEXT)
-                .width(Length::Shrink),
+                .width(Length::Fill),
         ]
-        .width(Length::Shrink)
+        .width(Length::Fixed(100.0))
     } else {
         selected_halving.map_or(
-            iced::widget::column![].width(Length::Shrink),
+            iced::widget::column![].width(Length::Fixed(100.0)),
             |n| {
                 column![
                     text(format!("{}{}", n, ordinal_suffix(n)))
@@ -70,7 +76,7 @@ pub fn view<'a>(selected_halving: Option<u32>, yoy_selected: bool) -> Element<'a
                             style: iced::font::Style::Normal,
                         })
                         .color(theme::HALVING_BUTTON_TEXT)
-                        .width(Length::Shrink),
+                        .width(Length::Fill),
                     text("HALVING")
                         .size(18)
                         .font(iced::Font {
@@ -80,9 +86,9 @@ pub fn view<'a>(selected_halving: Option<u32>, yoy_selected: bool) -> Element<'a
                             style: iced::font::Style::Normal,
                         })
                         .color(theme::HALVING_BUTTON_TEXT)
-                        .width(Length::Shrink),
+                        .width(Length::Fill),
                 ]
-                .width(Length::Shrink)
+                .width(Length::Fixed(100.0))
             },
         )
     };
@@ -102,15 +108,33 @@ pub fn view<'a>(selected_halving: Option<u32>, yoy_selected: bool) -> Element<'a
     .padding(iced::Padding::new(0.0).left(16.0).right(16.0))
     .style(placeholder_style);
 
-    let price = container(iced::widget::column![])
-        .width(Length::Fill)
-        .height(Length::FillPortion(7))
-        .style(placeholder_style);
+    let price: Element<'a, crate::modules::ui::mainwindow::application::Message> = if yoy_selected {
+        container(LineChart::new(chart_state))
+            .width(Length::Fill)
+            .height(Length::FillPortion(7))
+            .style(placeholder_style)
+            .into()
+    } else {
+        container(iced::widget::column![])
+            .width(Length::Fill)
+            .height(Length::FillPortion(7))
+            .style(placeholder_style)
+            .into()
+    };
 
-    let volume = container(iced::widget::column![])
-        .width(Length::Fill)
-        .height(Length::FillPortion(2))
-        .style(placeholder_style);
+    let volume: Element<'a, crate::modules::ui::mainwindow::application::Message> = if yoy_selected {
+        container(VolumeChart::new(&chart_state.candles))
+            .width(Length::Fill)
+            .height(Length::FillPortion(2))
+            .style(placeholder_style)
+            .into()
+    } else {
+        container(iced::widget::column![])
+            .width(Length::Fill)
+            .height(Length::FillPortion(2))
+            .style(placeholder_style)
+            .into()
+    };
 
     container(
         column![metrics, price, volume]

@@ -108,7 +108,7 @@ pub fn fetch_and_store() {
         return;
     }
 
-    // Compute how many days we need to fetch, with a 3-candle buffer.
+    // Compute how many days we need to fetch, with a 2-candle buffer.
     // We only request completed candles (up to yesterday_midnight inclusive).
     let gap_days = (yesterday_midnight - start_ts) / 86_400 + 1;
 
@@ -118,13 +118,13 @@ pub fn fetch_and_store() {
     }
 
     eprintln!(
-        "[bitstamp] gap of {} day(s) to fill (with 3-candle buffer)",
+        "[bitstamp] gap of {} day(s) to fill (with 2-candle buffer)",
         gap_days
     );
 
     // Paginate backwards from yesterday_midnight, using an appropriate limit per page.
     let mut total_inserted = 0u64;
-    let mut remaining = gap_days + 3; // include buffer
+    let mut remaining = gap_days + 2; // include buffer
     let mut cursor = yesterday_midnight;
 
     while remaining > 0 {

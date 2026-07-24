@@ -3,6 +3,7 @@ use iced::{Element, Subscription, window, Font, Length};
 use iced::window::Position;
 use rusqlite::Connection;
 use std::path::PathBuf;
+use crate::modules::ui::line_chart::LineChartState;
 use crate::modules::ui::scaling::Scaling;
 use crate::modules::ui::mainwindow::dashboard_layout::dashboard;
 use crate::modules::ui::mainwindow::sidebar::halving_sidebar;
@@ -51,6 +52,7 @@ struct Halvora {
     subsidy_value: String,
     sats_per_usd: String,
     all_time_high: String,
+    line_chart_state: LineChartState,
 }
 
 impl Halvora {
@@ -63,6 +65,8 @@ impl Halvora {
         let percentage_issued = crate::modules::compute::coins_issued::percentage_issued(current_tip_height);
         let remaining_issuance = crate::modules::compute::coins_issued::remaining_issuance(current_tip_height);
         let all_time_high = crate::modules::compute::price_stats::all_time_high(None);
+
+        let candles = crate::modules::compute::year_over_year::trailing_365_candles();
 
         Self {
             selected_halving: None,
@@ -78,6 +82,7 @@ impl Halvora {
             subsidy_value: crate::modules::compute::price_stats::subsidy_value(None, current_subsidy_sat),
             sats_per_usd: crate::modules::compute::price_stats::sats_per_usd(None),
             all_time_high,
+            line_chart_state: LineChartState::new(candles),
         }
     }
 
@@ -161,7 +166,11 @@ fn update(state: &mut Halvora, message: Message) {
 fn view(state: &Halvora) -> Element<'_, Message> {
     row![
         halving_sidebar::view(state.selected_halving, state.yoy_selected),
-        dashboard::view(state.selected_halving, state.yoy_selected),
+        dashboard::view(
+            state.selected_halving,
+            state.yoy_selected,
+            &state.line_chart_state,
+        ),
         blockchain_sidebar::view(state.current_tip_height, state.current_subsidy_sat, &state.next_halving_eta, &state.blocks_to_next_halving, &state.coins_issued, &state.percentage_issued, &state.remaining_issuance, state.live_price, &state.subsidy_value, &state.sats_per_usd, &state.all_time_high),
     ]
     .width(Length::Fill)
