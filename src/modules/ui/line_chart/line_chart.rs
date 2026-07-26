@@ -1,4 +1,6 @@
 use chrono::{DateTime, Datelike};
+use iced::keyboard;
+use iced::keyboard::key;
 use iced::mouse;
 use iced::widget::canvas::{
     self, Canvas, Fill, Frame, Geometry, Path, Stroke, Style,
@@ -14,8 +16,8 @@ use crate::modules::compute::year_over_year::Candle;
 /// Crosshair state tracked internally by the canvas program on mouse move.
 #[derive(Default, Clone, Copy)]
 struct CrosshairState {
-    ts: Option<f64>,
-    price: Option<f64>,
+    candle: Option<Candle>,
+    active_idx: Option<usize>,
 }
 
 /// The line chart widget.
@@ -130,8 +132,8 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
         draw_axes_labels(&mut frame, &plot, x_min, x_max, y_min, y_max);
 
         // 4. Crosshair
-        if let (Some(ts), Some(price)) = (state.ts, state.price) {
-            draw_crosshair(&mut frame, &plot, ts, price, x_min, x_max, y_min, y_max);
+        if let Some(candle) = &state.candle {
+            draw_crosshair(&mut frame, &plot, candle, x_min, x_max);
         }
 
         vec![frame.into_geometry()]
@@ -161,19 +163,54 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
                         && position.y <= plot.y + plot.height
                     {
                         let (x_min, x_max) = self.data.x_bounds();
-                        let (y_min, y_max) = self.data.y_bounds();
-                        state.ts = Some(screen_x_to_data(position.x, x_min, x_max, &plot));
-                        state.price = Some(screen_y_to_data(position.y, y_min, y_max, &plot));
+                        let cursor_ts = screen_x_to_data(position.x, x_min, x_max, &plot);
+
+                        // Binary search to find nearest candle
+                        let candles = &self.data.candles;
+                        let idx = candles.partition_point(|c| (c.timestamp as f64) < cursor_ts);
+                        let nearest_idx = if idx == 0 {
+                            0
+                        } else if idx >= candles.len() {
+                            candles.len() - 1
+                        } else {
+                            let left_dist = cursor_ts - candles[idx - 1].timestamp as f64;
+                            let right_dist = candles[idx].timestamp as f64 - cursor_ts;
+                            if left_dist <= right_dist { idx - 1 } else { idx }
+                        };
+                        state.candle = Some(candles[nearest_idx]);
+                        state.active_idx = Some(nearest_idx);
                     } else {
-                        state.ts = None;
-                        state.price = None;
+                        state.candle = None;
                     }
                     Some(canvas::Action::request_redraw().and_capture())
                 }
                 mouse::Event::CursorLeft => {
-                    state.ts = None;
-                    state.price = None;
+                    state.candle = None;
                     Some(canvas::Action::request_redraw().and_capture())
+                }
+                _ => None,
+            },
+            canvas::Event::Keyboard(key_event) => match key_event {
+                keyboard::Event::KeyPressed { key: k, .. } => {
+                    let candles = &self.data.candles;
+                    if candles.is_empty() {
+                        return None;
+                    }
+                    let idx = state.active_idx.unwrap_or(candles.len() - 1);
+                    let new_idx = match k.as_ref() {
+                        key::Key::Named(key::Named::ArrowLeft) => idx.saturating_sub(1),
+                        key::Key::Named(key::Named::ArrowRight) => {
+                            if idx + 1 < candles.len() { idx + 1 } else { idx }
+                        }
+                        _ => return None,
+                    };
+                    if new_idx != idx {
+                        state.active_idx = Some(new_idx);
+                        state.candle = Some(candles[new_idx]);
+                        Some(canvas::Action::request_redraw().and_capture())
+                    } else {
+                        None
+                    }
                 }
                 _ => None,
             },
@@ -437,17 +474,13 @@ fn draw_axes_labels(
 fn draw_crosshair(
     frame: &mut Frame,
     plot: &Rectangle,
-    ts: f64,
-    price: f64,
+    candle: &Candle,
     x_min: f64,
     x_max: f64,
-    y_min: f64,
-    y_max: f64,
 ) {
-    let x = data_x_to_screen(ts, x_min, x_max, plot);
-    let y = data_y_to_screen(price, y_min, y_max, plot);
+    let x = data_x_to_screen(candle.timestamp as f64, x_min, x_max, plot);
 
-    // Vertical line
+    // Vertical line only
     if x >= plot.x && x <= plot.x + plot.width {
         let vline = Path::new(|p| {
             p.move_to(Point::new(x, plot.y));
@@ -456,16 +489,7 @@ fn draw_crosshair(
         frame.stroke(&vline, Stroke::default().with_color(CROSSHAIR_COLOR).with_width(1.0));
     }
 
-    // Horizontal line
-    if y >= plot.y && y <= plot.y + plot.height {
-        let hline = Path::new(|p| {
-            p.move_to(Point::new(plot.x, y));
-            p.line_to(Point::new(plot.x + plot.width, y));
-        });
-        frame.stroke(&hline, Stroke::default().with_color(CROSSHAIR_COLOR).with_width(1.0));
-    }
-
-    // Price readout — date and price side by side (top-right corner)
+    // Price readout — date and close price (top-right corner)
     fn fmt_price_with_commas(p: f64) -> String {
         let whole = p.trunc() as i64;
         let cents = ((p - p.trunc()) * 100.0).round() as u64;
@@ -483,7 +507,7 @@ fn draw_crosshair(
         result
     }
 
-    let label = if let Some(dt) = DateTime::from_timestamp(ts as i64, 0) {
+    let label = if let Some(dt) = DateTime::from_timestamp(candle.timestamp, 0) {
         format!(
             "{} {} '{} \u{2014}  {}",
             dt.day(),
@@ -494,10 +518,10 @@ fn draw_crosshair(
                 _ => "???",
             },
             dt.year() % 100,
-            fmt_price_with_commas(price),
+            fmt_price_with_commas(candle.close),
         )
     } else {
-        fmt_price_with_commas(price)
+        fmt_price_with_commas(candle.close)
     };
 
     frame.fill_text(canvas::Text {
