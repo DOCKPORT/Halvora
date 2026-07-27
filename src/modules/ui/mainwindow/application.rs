@@ -3,6 +3,7 @@ use iced::{Element, Subscription, window, Font, Length};
 use iced::window::Position;
 use rusqlite::Connection;
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 use crate::modules::ui::line_chart::LineChartState;
 use crate::modules::ui::scaling::Scaling;
 use crate::modules::ui::mainwindow::dashboard_layout::dashboard;
@@ -53,6 +54,7 @@ struct Halvora {
     sats_per_usd: String,
     all_time_high: String,
     line_chart_state: LineChartState,
+    volume_sync_start: Instant,
 }
 
 impl Halvora {
@@ -83,6 +85,7 @@ impl Halvora {
             sats_per_usd: crate::modules::compute::price_stats::sats_per_usd(None),
             all_time_high,
             line_chart_state: LineChartState::new(candles),
+            volume_sync_start: Instant::now(),
         }
     }
 
@@ -125,12 +128,14 @@ pub enum Message {
     YoYSelected,
     Tick,
     LivePrice(f64),
+    NewDay(i64),
 }
 
 fn subscription(_state: &Halvora) -> Subscription<Message> {
     Subscription::batch(vec![
         iced::time::every(std::time::Duration::from_secs(600)).map(|_| Message::Tick),
         crate::modules::api::bit_stamp::ws::live_price().map(Message::LivePrice),
+        crate::modules::compute::midnight_rollover::detect().map(Message::NewDay),
     ])
 }
 
@@ -153,12 +158,41 @@ fn update(state: &mut Halvora, message: Message) {
             state.coins_issued = crate::modules::compute::coins_issued::coins_issued(state.current_tip_height);
             state.percentage_issued = crate::modules::compute::coins_issued::percentage_issued(state.current_tip_height);
             state.remaining_issuance = crate::modules::compute::coins_issued::remaining_issuance(state.current_tip_height);
+
+            // Hourly volume sync for today's partial candle (with 1h cooldown at startup).
+            if state.volume_sync_start.elapsed() >= Duration::from_secs(3600) {
+                crate::modules::api::bit_stamp::candle_sync::update_today_volume();
+                let candles = crate::modules::compute::year_over_year::trailing_365_candles();
+                state.line_chart_state = LineChartState::new(candles);
+                state.volume_sync_start = Instant::now();
+            }
         }
         Message::LivePrice(price) => {
             state.live_price = Some(price);
             state.subsidy_value = crate::modules::compute::price_stats::subsidy_value(Some(price), state.current_subsidy_sat);
             state.sats_per_usd = crate::modules::compute::price_stats::sats_per_usd(Some(price));
             state.all_time_high = crate::modules::compute::price_stats::all_time_high(Some(price));
+
+            // Update today's candle close/high/low in the in-memory chart state.
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(0);
+            let today_midnight = now - (now % 86_400);
+            if let Some(last) = state.line_chart_state.candles.last_mut() {
+                if last.timestamp == today_midnight {
+                    if price > last.high { last.high = price; }
+                    if price < last.low  { last.low = price; }
+                    last.close = price;
+                }
+            }
+        }
+        Message::NewDay(_ts) => {
+            // Midnight rollover — fetch the new day's candle and refresh the chart.
+            crate::modules::api::bit_stamp::candle_sync::fetch_and_store();
+            let candles = crate::modules::compute::year_over_year::trailing_365_candles();
+            state.line_chart_state = LineChartState::new(candles);
+            state.volume_sync_start = Instant::now();
         }
     }
 }

@@ -131,9 +131,21 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
         // 4. Axes labels
         draw_axes_labels(&mut frame, &plot, x_min, x_max, y_min, y_max);
 
-        // 4. Crosshair
-        if let Some(candle) = &state.candle {
-            draw_crosshair(&mut frame, &plot, candle, x_min, x_max);
+        // 4. Crosshair — hovered candle or today's candle as default
+        if let (Some(candle), Some(active_idx)) = (&state.candle, state.active_idx) {
+            draw_crosshair(
+                &mut frame, &plot,
+                candle, active_idx,
+                &self.data.candles, x_min, x_max,
+                true, // show vertical line
+            );
+        } else if let Some((today_cdl, today_idx)) = today_candle(&self.data.candles) {
+            draw_crosshair(
+                &mut frame, &plot,
+                &today_cdl, today_idx,
+                &self.data.candles, x_min, x_max,
+                false, // no vertical line — not hovered
+            );
         }
 
         vec![frame.into_geometry()]
@@ -471,25 +483,40 @@ fn draw_axes_labels(
     }
 }
 
+/// Return today's candle and its index in the candles array.
+fn today_candle(candles: &[Candle]) -> Option<(Candle, usize)> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?
+        .as_secs() as i64;
+    let today_midnight = now - (now % 86_400);
+    let i = candles.iter().position(|c| c.timestamp == today_midnight)?;
+    Some((candles[i], i))
+}
+
 fn draw_crosshair(
     frame: &mut Frame,
     plot: &Rectangle,
     candle: &Candle,
+    active_idx: usize,
+    all_candles: &[Candle],
     x_min: f64,
     x_max: f64,
+    show_line: bool,
 ) {
-    let x = data_x_to_screen(candle.timestamp as f64, x_min, x_max, plot);
-
-    // Vertical line only
-    if x >= plot.x && x <= plot.x + plot.width {
-        let vline = Path::new(|p| {
-            p.move_to(Point::new(x, plot.y));
-            p.line_to(Point::new(x, plot.y + plot.height));
-        });
-        frame.stroke(&vline, Stroke::default().with_color(CROSSHAIR_COLOR).with_width(1.0));
+    // Vertical line (only shown on hover)
+    if show_line {
+        let x = data_x_to_screen(candle.timestamp as f64, x_min, x_max, plot);
+        if x >= plot.x && x <= plot.x + plot.width {
+            let vline = Path::new(|p| {
+                p.move_to(Point::new(x, plot.y));
+                p.line_to(Point::new(x, plot.y + plot.height));
+            });
+            frame.stroke(&vline, Stroke::default().with_color(CROSSHAIR_COLOR).with_width(1.0));
+        }
     }
 
-    // Price readout — date and close price (top-right corner)
+    // Price readout — date, close price, and VWAP (top-right corner)
     fn fmt_price_with_commas(p: f64) -> String {
         let whole = p.trunc() as i64;
         let cents = ((p - p.trunc()) * 100.0).round() as u64;
@@ -507,9 +534,37 @@ fn draw_crosshair(
         result
     }
 
+    fn fmt_price_whole(p: f64) -> String {
+        let whole = p.trunc() as i64;
+        let s = whole.to_string();
+        let mut result = String::with_capacity(s.len() + s.len() / 3 + 1);
+        result.push('$');
+        for (i, c) in s.chars().enumerate() {
+            if i > 0 && (s.len() - i) % 3 == 0 {
+                result.push(',');
+            }
+            result.push(c);
+        }
+        result
+    }
+
+    // Compute the progressive VWAP up to the active index
+    let vwap_label = {
+        let pairs: Vec<(f64, f64)> = all_candles[..=active_idx]
+            .iter()
+            .map(|c| (c.close, c.volume))
+            .collect();
+        let vwaps = crate::modules::compute::vwap::progressive_vwap(&pairs);
+        vwaps
+            .last()
+            .and_then(|v| *v)
+            .map(|vwap| format!(" | VWAP: {}", fmt_price_whole(vwap)))
+            .unwrap_or_default()
+    };
+
     let label = if let Some(dt) = DateTime::from_timestamp(candle.timestamp, 0) {
         format!(
-            "{} {} '{} \u{2014}  {}",
+            "{} {} '{} \u{2014}  C: {}{}",
             dt.day(),
             match dt.month() {
                 1 => "Jan", 2 => "Feb", 3 => "Mar", 4 => "Apr",
@@ -519,9 +574,10 @@ fn draw_crosshair(
             },
             dt.year() % 100,
             fmt_price_with_commas(candle.close),
+            vwap_label,
         )
     } else {
-        fmt_price_with_commas(candle.close)
+        format!("{}{}", fmt_price_with_commas(candle.close), vwap_label)
     };
 
     frame.fill_text(canvas::Text {

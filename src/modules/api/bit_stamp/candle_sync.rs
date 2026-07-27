@@ -52,9 +52,10 @@ struct Candle {
 /// Fetch BTC/USD daily OHLC candles from Bitstamp and store them in
 /// `~/.local/share/Halvora/Exchange/btcusd.db`.
 ///
-/// - On first run, backfills from Nov 1 2012 to yesterday.
+/// - On first run, backfills from Nov 1 2012 to today (inclusive).
 /// - On subsequent runs, fetches only the gap (if any) since the latest candle.
-/// - Skips entirely if the latest candle is yesterday.
+/// - Skips entirely if the latest candle is today.
+/// - Today's candle is overwritten on each sync so partial-day volume updates.
 pub fn fetch_and_store() {
     let db_path = db_path();
 
@@ -95,22 +96,21 @@ pub fn fetch_and_store() {
 
     let start_ts = latest_ts.map(|t| t + 86_400).unwrap_or(EPOCH_START);
 
-    // Yesterday's midnight (00:00:00 UTC) — the last completed daily candle.
+    // Today's midnight (00:00:00 UTC) — includes the current incomplete candle.
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0);
     let today_midnight = now - (now % 86_400);
-    let yesterday_midnight = today_midnight - 86_400;
 
-    if start_ts > yesterday_midnight {
+    if start_ts > today_midnight {
         eprintln!("[bitstamp] already up to date (latest: {})", latest_ts.unwrap_or(0));
         return;
     }
 
-    // Compute how many days we need to fetch, with a 2-candle buffer.
-    // We only request completed candles (up to yesterday_midnight inclusive).
-    let gap_days = (yesterday_midnight - start_ts) / 86_400 + 1;
+    // Compute how many days we need to fetch, with a 1-candle buffer.
+    // We request up to today_midnight inclusive.
+    let gap_days = (today_midnight - start_ts) / 86_400 + 1;
 
     if gap_days <= 0 {
         eprintln!("[bitstamp] already up to date (latest: {})", latest_ts.unwrap_or(0));
@@ -118,14 +118,14 @@ pub fn fetch_and_store() {
     }
 
     eprintln!(
-        "[bitstamp] gap of {} day(s) to fill (with 2-candle buffer)",
+        "[bitstamp] gap of {} day(s) to fill (with 1-candle buffer)",
         gap_days
     );
 
-    // Paginate backwards from yesterday_midnight, using an appropriate limit per page.
+    // Paginate backwards from today_midnight, using an appropriate limit per page.
     let mut total_inserted = 0u64;
-    let mut remaining = gap_days + 2; // include buffer
-    let mut cursor = yesterday_midnight;
+    let mut remaining = gap_days + 1; // include buffer
+    let mut cursor = today_midnight;
 
     while remaining > 0 {
         let limit = remaining.min(PAGE_SIZE);
@@ -226,6 +226,34 @@ fn fetch_page(start_ts: i64, limit: i64) -> Option<Vec<Candle>> {
     Some(candles)
 }
 
+/// Fetch only today's partial candle from Bitstamp and overwrite it in the DB.
+///
+/// This is called periodically (every hour) so the volume for the current
+/// incomplete day stays reasonably up-to-date without re-fetching the entire
+/// 365-day range.
+pub fn update_today_volume() {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let today_midnight = now - (now % 86_400);
+
+    let Some(candles) = fetch_page(today_midnight, 1) else {
+        eprintln!("[bitstamp] failed to fetch today's candle for volume update");
+        return;
+    };
+
+    let conn = match Connection::open(&db_path()) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("[bitstamp] failed to open database for volume update: {}", e);
+            return;
+        }
+    };
+
+    store_candles(&conn, &candles);
+}
+
 /// Insert candles into the database, skipping existing timestamps.
 /// Returns the number of rows actually inserted.
 fn store_candles(conn: &Connection, candles: &[Candle]) -> u64 {
@@ -239,7 +267,7 @@ fn store_candles(conn: &Connection, candles: &[Candle]) -> u64 {
 
     for c in candles {
         match conn.execute(
-            "INSERT OR IGNORE INTO daily_candles (timestamp, open, high, low, close, volume)
+            "INSERT OR REPLACE INTO daily_candles (timestamp, open, high, low, close, volume)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             rusqlite::params![c.timestamp, c.open, c.high, c.low, c.close, c.volume],
         ) {
