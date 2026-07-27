@@ -1,16 +1,18 @@
 use iced::widget::{container, text, Row};
 use iced::{Element, Length};
+use crate::modules::compute::metrics::Metrics;
 use crate::modules::ui::theme;
 
 fn metric_card<'a>(
     label: &'a str,
+    value: &'a str,
 ) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
     let inner = iced::widget::Column::with_children(vec![
         text(label)
             .size(14)
             .color(theme::HALVING_BUTTON_TEXT)
             .into(),
-        text("\u{2014}")
+        text(value)
             .size(16)
             .font(iced::Font {
                 family: iced::font::Family::Name("Geist Mono"),
@@ -36,14 +38,16 @@ fn metric_card<'a>(
         .into()
 }
 
-pub fn view<'a>() -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
+pub fn view<'a>(
+    metrics: &'a Metrics,
+) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
     Row::with_children(vec![
-        metric_card("P/L"),
-        metric_card("High"),
-        metric_card("Low"),
-        metric_card("Draw-Down"),
-        metric_card("Run-Up"),
-        metric_card("Calmar"),
+        metric_card("P/L", &metrics.p_l),
+        metric_card("High", &metrics.high),
+        metric_card("Low", &metrics.low),
+        metric_card("Draw-Down", &metrics.draw_down),
+        metric_card("Run-Up", &metrics.run_up),
+        metric_card("Calmar", &metrics.calmar),
     ])
     .spacing(8)
     .width(Length::Fill)

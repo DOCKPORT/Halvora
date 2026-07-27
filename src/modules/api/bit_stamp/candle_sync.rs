@@ -78,11 +78,20 @@ pub fn fetch_and_store() {
             low       REAL NOT NULL,
             close     REAL NOT NULL,
             volume    REAL NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS metadata (
+            key   TEXT PRIMARY KEY,
+            value INTEGER NOT NULL
         );",
     ) {
-        eprintln!("[bitstamp] failed to create table: {}", e);
+        eprintln!("[bitstamp] failed to create tables: {}", e);
         return;
     }
+
+    // Refresh today's volume if the 1-hour cooldown has expired.
+    // This runs before the gap/early-return logic so it works even when
+    // the DB already has today's candle (e.g. on app restart).
+    refresh_today_volume_if_stale(&conn);
 
     // Determine the latest candle we already have.
     let latest_ts: Option<i64> = conn
@@ -224,6 +233,44 @@ fn fetch_page(start_ts: i64, limit: i64) -> Option<Vec<Candle>> {
         .collect();
 
     Some(candles)
+}
+
+/// Check the metadata cooldown and fetch today's candle if expired.
+fn refresh_today_volume_if_stale(conn: &Connection) {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let last_fetch: Option<i64> = conn
+        .query_row(
+            "SELECT value FROM metadata WHERE key = 'last_volume_fetch'",
+            [],
+            |row| row.get(0),
+        )
+        .ok();
+
+    let should_refetch = match last_fetch {
+        None => true,
+        Some(ts) => now - ts >= 3600,
+    };
+
+    if !should_refetch {
+        return;
+    }
+
+    let today_midnight = now - (now % 86_400);
+    let Some(candles) = fetch_page(today_midnight, 1) else {
+        eprintln!("[bitstamp] failed to fetch today's candle for volume refresh");
+        return;
+    };
+    store_candles(conn, &candles);
+
+    if let Err(e) = conn.execute(
+        "INSERT OR REPLACE INTO metadata (key, value) VALUES ('last_volume_fetch', ?1)",
+        rusqlite::params![now],
+    ) {
+        eprintln!("[bitstamp] failed to update volume fetch timestamp: {}", e);
+    }
 }
 
 /// Fetch only today's partial candle from Bitstamp and overwrite it in the DB.

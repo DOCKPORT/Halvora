@@ -1,5 +1,6 @@
 use iced::widget::{column, container, row, text};
 use iced::{border, Element, Length};
+use crate::modules::compute::metrics::Metrics;
 use crate::modules::ui::line_chart::{LineChart, LineChartState};
 use crate::modules::ui::theme;
 use crate::modules::ui::volume_chart::VolumeChart;
@@ -21,6 +22,7 @@ pub fn view<'a>(
     selected_halving: Option<u32>,
     yoy_selected: bool,
     chart_state: &'a LineChartState,
+    metrics: &'a Metrics,
 ) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
     let placeholder_style = |_theme: &iced::Theme| -> container::Style {
         container::Style::default()
@@ -97,7 +99,7 @@ pub fn view<'a>(
         row![
             metrics_label,
             iced::widget::space().width(16),
-            metric_labels::view(),
+            metric_labels::view(metrics),
         ]
         .width(Length::Fill)
         .height(Length::Fill)
@@ -123,7 +125,7 @@ pub fn view<'a>(
     };
 
     let volume: Element<'a, crate::modules::ui::mainwindow::application::Message> = if yoy_selected {
-        container(VolumeChart::new(&chart_state.candles))
+        container(VolumeChart::new(chart_state))
             .width(Length::Fill)
             .height(Length::FillPortion(2))
             .style(placeholder_style)

@@ -106,7 +106,7 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
                 .with_width(1.0),
         );
 
-        // 2. Price line with fill
+        // 3. Price line with fill
         draw_price_line(
             &mut frame,
             &plot,
@@ -117,7 +117,7 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
             y_max,
         );
 
-        // 3. Progressive VWAP line (white, on top of price line)
+        // 4. Progressive VWAP line (white, on top of price line)
         draw_vwap_line(
             &mut frame,
             &plot,
@@ -128,10 +128,22 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
             y_max,
         );
 
-        // 4. Axes labels
+        // 5. Anchored VWAP lines (also white, same style)
+        draw_anchored_vwaps(
+            &mut frame,
+            &plot,
+            &self.data.candles,
+            x_min,
+            x_max,
+            y_min,
+            y_max,
+            &self.data.anchors(),
+        );
+
+        // 6. Axes labels
         draw_axes_labels(&mut frame, &plot, x_min, x_max, y_min, y_max);
 
-        // 4. Crosshair — hovered candle or today's candle as default
+        // 7. Crosshair — hovered candle or today's candle as default
         if let (Some(candle), Some(active_idx)) = (&state.candle, state.active_idx) {
             draw_crosshair(
                 &mut frame, &plot,
@@ -156,10 +168,50 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
         state: &mut CrosshairState,
         event: &canvas::Event,
         bounds: Rectangle,
-        _cursor: mouse::Cursor,
+        cursor: mouse::Cursor,
     ) -> Option<canvas::Action<Message>> {
         match event {
             canvas::Event::Mouse(mouse_event) => match mouse_event {
+                mouse::Event::ButtonPressed(mouse::Button::Left) => {
+                    if let Some(idx) = state.active_idx {
+                        self.data.push_anchor(idx);
+                        return Some(canvas::Action::request_redraw().and_capture());
+                    }
+                    None
+                }
+                mouse::Event::ButtonPressed(mouse::Button::Right) => {
+                    // Hit-test: find if cursor is within 3px of any anchored VWAP line
+                    let plot = Rectangle {
+                        x: bounds.x + 60.0,
+                        y: bounds.y + 60.0,
+                        width: bounds.width - 120.0,
+                        height: bounds.height - 120.0,
+                    };
+                    if let Some(cursor_pt) = cursor.position_over(bounds) {
+                        // Only process right-click if cursor is inside plot area
+                        if cursor_pt.x >= plot.x
+                            && cursor_pt.x <= plot.x + plot.width
+                            && cursor_pt.y >= plot.y
+                            && cursor_pt.y <= plot.y + plot.height
+                        {
+                            let (x_min, x_max) = self.data.x_bounds();
+                            let (y_min, y_max) = self.data.y_bounds();
+                            if let Some(list_idx) = hit_test_anchored_vwaps(
+                                cursor_pt.x as f64,
+                                cursor_pt.y as f64,
+                                &plot,
+                                x_min, x_max,
+                                y_min, y_max,
+                                &self.data.candles,
+                                &self.data.anchors(),
+                            ) {
+                                self.data.remove_anchor_at(list_idx);
+                                return Some(canvas::Action::request_redraw().and_capture());
+                            }
+                        }
+                    }
+                    None
+                }
                 mouse::Event::CursorMoved { position } => {
                     // In update(), bounds are screen-absolute and cursor
                     // is screen-absolute, so we must keep bounds.x/y here.
@@ -191,13 +243,16 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
                         };
                         state.candle = Some(candles[nearest_idx]);
                         state.active_idx = Some(nearest_idx);
+                        self.data.hovered_index.set(Some(nearest_idx));
                     } else {
                         state.candle = None;
+                        self.data.hovered_index.set(None);
                     }
                     Some(canvas::Action::request_redraw().and_capture())
                 }
                 mouse::Event::CursorLeft => {
                     state.candle = None;
+                    self.data.hovered_index.set(None);
                     Some(canvas::Action::request_redraw().and_capture())
                 }
                 _ => None,
@@ -219,6 +274,7 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
                     if new_idx != idx {
                         state.active_idx = Some(new_idx);
                         state.candle = Some(candles[new_idx]);
+                        self.data.hovered_index.set(Some(new_idx));
                         Some(canvas::Action::request_redraw().and_capture())
                     } else {
                         None
@@ -281,6 +337,9 @@ const GREY_FILL: Color = Color::from_rgba(0.5, 0.5, 0.5, 0.1);
 const TEXT_COLOR: Color = Color::from_rgb(0.7, 0.7, 0.7);
 const CROSSHAIR_COLOR: Color = Color::from_rgba(0.8, 0.8, 0.8, 0.5);
 const VWAP_COLOR: Color = Color::WHITE;
+
+/// Tolerance in screen pixels for right-click hit-testing on anchored VWAP lines.
+const VWAP_HIT_TOLERANCE: f64 = 4.0;
 
 /// Determine the line and fill colour based on price trend.
 /// Up: green, Down: red, Flat: grey.
@@ -433,6 +492,127 @@ fn draw_vwap_line(
     frame.stroke(&path, Stroke::default().with_color(VWAP_COLOR).with_width(1.5));
 }
 
+/// Draw anchored VWAP lines (white, 1.5px) starting from user-selected candle indices.
+///
+/// Each anchor corresponds to a left-click on a candle. The VWAP is computed
+/// from that candle's close/volume through all subsequent candles.
+fn draw_anchored_vwaps(
+    frame: &mut Frame,
+    plot: &Rectangle,
+    candles: &[Candle],
+    x_min: f64,
+    x_max: f64,
+    y_min: f64,
+    y_max: f64,
+    anchors: &[usize],
+) {
+    for &anchor_idx in anchors {
+        if anchor_idx >= candles.len() {
+            continue;
+        }
+
+        // Subslice from anchor to end
+        let sub_candles = &candles[anchor_idx..];
+        let pairs: Vec<(f64, f64)> = sub_candles
+            .iter()
+            .map(|c| (c.close, c.volume))
+            .collect();
+
+        let vwaps = progressive_vwap(&pairs);
+
+        // Collect (timestamp, vwap) for points that are Some
+        let points: Vec<(f64, f64)> = sub_candles
+            .iter()
+            .zip(vwaps.iter())
+            .filter_map(|(c, v)| v.map(|vwap| (c.timestamp as f64, vwap)))
+            .collect();
+
+        if points.len() < 2 {
+            continue;
+        }
+
+        let path = Path::new(|p| {
+            let first_x = data_x_to_screen(points[0].0, x_min, x_max, plot);
+            let first_y = data_y_to_screen(points[0].1, y_min, y_max, plot);
+            p.move_to(Point::new(first_x, first_y));
+
+            for &(ts, vwap) in &points[1..] {
+                let x = data_x_to_screen(ts, x_min, x_max, plot);
+                let y = data_y_to_screen(vwap, y_min, y_max, plot);
+                p.line_to(Point::new(x, y));
+            }
+        });
+
+        frame.stroke(&path, Stroke::default().with_color(VWAP_COLOR).with_width(1.5));
+    }
+}
+
+/// Hit-test against all anchored VWAP lines. Returns the list index of the
+/// anchor whose line segment is within `VWAP_HIT_TOLERANCE` screen pixels
+/// of `(cursor_x, cursor_y)`. Returns `None` if no line is close enough.
+fn hit_test_anchored_vwaps(
+    cursor_x: f64,
+    cursor_y: f64,
+    plot: &Rectangle,
+    x_min: f64,
+    x_max: f64,
+    y_min: f64,
+    y_max: f64,
+    candles: &[Candle],
+    anchors: &[usize],
+) -> Option<usize> {
+    for (list_idx, &anchor_idx) in anchors.iter().enumerate() {
+        if anchor_idx >= candles.len() {
+            continue;
+        }
+
+        let sub_candles = &candles[anchor_idx..];
+        let pairs: Vec<(f64, f64)> = sub_candles
+            .iter()
+            .map(|c| (c.close, c.volume))
+            .collect();
+        let vwaps = progressive_vwap(&pairs);
+
+        // Build screen-space segments
+        let mut prev_pt: Option<(f64, f64)> = None;
+        for (c, v) in sub_candles.iter().zip(vwaps.iter()) {
+            if let Some(vwap) = v {
+                let sx = data_x_to_screen(c.timestamp as f64, x_min, x_max, plot) as f64;
+                let sy = data_y_to_screen(*vwap, y_min, y_max, plot) as f64;
+
+                if let Some((px, py)) = prev_pt {
+                    let dist = point_to_segment_distance(cursor_x, cursor_y, px, py, sx, sy);
+                    if dist <= VWAP_HIT_TOLERANCE {
+                        return Some(list_idx);
+                    }
+                }
+                prev_pt = Some((sx, sy));
+            } else {
+                prev_pt = None;
+            }
+        }
+    }
+    None
+}
+
+/// Compute the minimum distance from point `p` to the line segment `(a, b)`.
+fn point_to_segment_distance(px: f64, py: f64, ax: f64, ay: f64, bx: f64, by: f64) -> f64 {
+    let abx = bx - ax;
+    let aby = by - ay;
+    let apx = px - ax;
+    let apy = py - ay;
+
+    let t = (apx * abx + apy * aby) / (abx * abx + aby * aby);
+    let t = t.clamp(0.0, 1.0);
+
+    let cx = ax + t * abx;
+    let cy = ay + t * aby;
+
+    let dx = px - cx;
+    let dy = py - cy;
+    (dx * dx + dy * dy).sqrt()
+}
+
 fn draw_axes_labels(
     frame: &mut Frame,
     plot: &Rectangle,
@@ -441,17 +621,17 @@ fn draw_axes_labels(
     y_min: f64,
     y_max: f64,
 ) {
-    // Y-axis price labels (left side)
+    // Y-axis price labels (right side)
     let ticks = axis::y_ticks(y_min, y_max);
     for t in &ticks {
         let y = data_y_to_screen(t.position, y_min, y_max, plot);
         frame.fill_text(canvas::Text {
             content: t.label.clone(),
-            position: Point::new(plot.x - 8.0, y),
+            position: Point::new(plot.x + plot.width + 8.0, y),
             color: TEXT_COLOR,
             size: 12.0.into(),
             font: iced::Font::with_name("Geist Mono"),
-            align_x: text::Alignment::Right,
+            align_x: text::Alignment::Left,
             align_y: iced::alignment::Vertical::Center,
             ..canvas::Text::default()
         });
@@ -558,13 +738,13 @@ fn draw_crosshair(
         vwaps
             .last()
             .and_then(|v| *v)
-            .map(|vwap| format!(" | VWAP: {}", fmt_price_whole(vwap)))
+            .map(|vwap| format!(" — VWAP: {}", fmt_price_whole(vwap)))
             .unwrap_or_default()
     };
 
     let label = if let Some(dt) = DateTime::from_timestamp(candle.timestamp, 0) {
         format!(
-            "{} {} '{} \u{2014}  C: {}{}",
+            "{} {} '{} \u{2014} C: {}{}",
             dt.day(),
             match dt.month() {
                 1 => "Jan", 2 => "Feb", 3 => "Mar", 4 => "Apr",
@@ -582,11 +762,11 @@ fn draw_crosshair(
 
     frame.fill_text(canvas::Text {
         content: label,
-        position: Point::new(plot.x + plot.width - 4.0, plot.y + 4.0),
+        position: Point::new(plot.x + 4.0, plot.y + 4.0),
         color: Color::WHITE,
         size: 14.0.into(),
         font: iced::Font::with_name("Geist Mono"),
-        align_x: text::Alignment::Right,
+        align_x: text::Alignment::Left,
         align_y: iced::alignment::Vertical::Top,
         ..canvas::Text::default()
     });

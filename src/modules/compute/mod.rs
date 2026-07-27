@@ -1,5 +1,6 @@
 pub mod coins_issued;
 pub mod halving_eta;
+pub mod metrics;
 pub mod midnight_rollover;
 pub mod price_stats;
 pub mod vwap;

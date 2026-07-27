@@ -8,18 +8,19 @@ use iced::{Color, Element, Length, Point, Rectangle, Renderer, Theme};
 use super::axis;
 use super::state;
 use crate::modules::compute::year_over_year::Candle;
+use crate::modules::ui::line_chart::LineChartState;
 
 /// The volume bar chart widget.
 pub struct VolumeChart<'a> {
-    candles: &'a [Candle],
+    chart_state: &'a LineChartState,
     width: Length,
     height: Length,
 }
 
 impl<'a> VolumeChart<'a> {
-    pub fn new(candles: &'a [Candle]) -> Self {
+    pub fn new(chart_state: &'a LineChartState) -> Self {
         Self {
-            candles,
+            chart_state,
             width: Length::Fill,
             height: Length::Fill,
         }
@@ -44,7 +45,7 @@ where
 {
     fn from(chart: VolumeChart<'a>) -> Element<'a, Message> {
         Canvas::new(VolumeChartProgram {
-            candles: chart.candles,
+            chart_state: chart.chart_state,
         })
         .width(chart.width)
         .height(chart.height)
@@ -53,7 +54,7 @@ where
 }
 
 struct VolumeChartProgram<'a> {
-    candles: &'a [Candle],
+    chart_state: &'a LineChartState,
 }
 
 impl<Message> canvas::Program<Message> for VolumeChartProgram<'_> {
@@ -69,12 +70,13 @@ impl<Message> canvas::Program<Message> for VolumeChartProgram<'_> {
     ) -> Vec<Geometry> {
         let mut frame = Frame::new(renderer, bounds.size());
 
-        if self.candles.is_empty() {
+        let candles = &self.chart_state.candles;
+        if candles.is_empty() {
             return vec![frame.into_geometry()];
         }
 
-        let (x_min, x_max) = state::x_bounds(self.candles);
-        let (y_min, y_max) = state::y_bounds(self.candles);
+        let (x_min, x_max) = state::x_bounds(candles);
+        let (y_min, y_max) = state::y_bounds(candles);
         let plot = padded_plot_area(bounds);
 
         // 1. Grid lines at 33% and 67%
@@ -96,10 +98,43 @@ impl<Message> canvas::Program<Message> for VolumeChartProgram<'_> {
         );
 
         // 3. Volume bars
-        draw_bars(&mut frame, &plot, self.candles, x_min, x_max, y_min, y_max);
+        draw_bars(&mut frame, &plot, candles, x_min, x_max, y_min, y_max);
 
         // 4. Y-axis labels
         draw_axis_labels(&mut frame, &plot, y_min, y_max);
+
+        // 5. Crosshair vertical line synced from the line chart
+        if let Some(idx) = self.chart_state.hovered_index.get() {
+            if idx < candles.len() {
+                let x = data_x_to_screen(candles[idx].timestamp as f64, x_min, x_max, &plot);
+                if x >= plot.x && x <= plot.x + plot.width {
+                    let vline = Path::new(|p| {
+                        p.move_to(Point::new(x, plot.y));
+                        p.line_to(Point::new(x, plot.y + plot.height));
+                    });
+                    frame.stroke(&vline, Stroke::default().with_color(CROSSHAIR_COLOR).with_width(1.0));
+                }
+            }
+        }
+
+        // 6. Volume tooltip in top-left corner
+        let tooltip_idx = self.chart_state.hovered_index.get()
+            .or_else(|| today_candle(candles).map(|(_, idx)| idx));
+        if let Some(idx) = tooltip_idx {
+            if idx < candles.len() {
+                let vol = candles[idx].volume;
+                frame.fill_text(canvas::Text {
+                    content: format!("VOL: {:.2}", vol),
+                    position: Point::new(plot.x + 4.0, plot.y + 4.0),
+                    color: Color::WHITE,
+                    size: 14.0.into(),
+                    font: iced::Font::with_name("Geist Mono"),
+                    align_x: text::Alignment::Left,
+                    align_y: iced::alignment::Vertical::Top,
+                    ..canvas::Text::default()
+                });
+            }
+        }
 
         vec![frame.into_geometry()]
     }
@@ -146,6 +181,7 @@ const TEXT_COLOR: Color = Color::from_rgb(0.7, 0.7, 0.7);
 const BAR_HIGH: Color = Color::from_rgb(1.0, 1.0, 1.0);
 const BAR_MID: Color = Color::from_rgb(0.7, 0.7, 0.7);
 const BAR_LOW: Color = Color::from_rgb(0.35, 0.35, 0.35);
+const CROSSHAIR_COLOR: Color = Color::from_rgba(0.8, 0.8, 0.8, 0.5);
 
 // ── Drawing helpers ──────────────────────────────────────────────────────
 
@@ -214,6 +250,17 @@ fn draw_bars(
             },
         );
     }
+}
+
+/// Return today's candle and its index in the candles array.
+fn today_candle(candles: &[Candle]) -> Option<(Candle, usize)> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?
+        .as_secs() as i64;
+    let today_midnight = now - (now % 86_400);
+    let i = candles.iter().position(|c| c.timestamp == today_midnight)?;
+    Some((candles[i], i))
 }
 
 fn draw_axis_labels(frame: &mut Frame, plot: &Rectangle, y_min: f64, y_max: f64) {
