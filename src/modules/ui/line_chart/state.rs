@@ -25,8 +25,12 @@ impl LineChartState {
     }
 
     /// Add an anchored VWAP starting at the given candle index.
+    /// Duplicates are ignored — the same candle cannot anchor more than once.
     pub fn push_anchor(&self, idx: usize) {
-        self.anchored_vwaps.borrow_mut().push(idx);
+        let mut anchors = self.anchored_vwaps.borrow_mut();
+        if !anchors.contains(&idx) {
+            anchors.push(idx);
+        }
     }
 
     /// Remove the anchor at `list_idx` (position in the anchor list, not candle index).

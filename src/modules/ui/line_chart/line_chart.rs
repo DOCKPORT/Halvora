@@ -246,12 +246,14 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
                         self.data.hovered_index.set(Some(nearest_idx));
                     } else {
                         state.candle = None;
+                        state.active_idx = None;
                         self.data.hovered_index.set(None);
                     }
                     Some(canvas::Action::request_redraw().and_capture())
                 }
                 mouse::Event::CursorLeft => {
                     state.candle = None;
+                    state.active_idx = None;
                     self.data.hovered_index.set(None);
                     Some(canvas::Action::request_redraw().and_capture())
                 }
@@ -339,7 +341,7 @@ const CROSSHAIR_COLOR: Color = Color::from_rgba(0.8, 0.8, 0.8, 0.5);
 const VWAP_COLOR: Color = Color::WHITE;
 
 /// Tolerance in screen pixels for right-click hit-testing on anchored VWAP lines.
-const VWAP_HIT_TOLERANCE: f64 = 4.0;
+const VWAP_HIT_TOLERANCE: f64 = 5.0;
 
 /// Determine the line and fill colour based on price trend.
 /// Up: green, Down: red, Flat: grey.

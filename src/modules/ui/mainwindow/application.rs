@@ -72,7 +72,7 @@ impl Halvora {
 
         let candles = crate::modules::compute::year_over_year::trailing_365_candles();
 
-        let metrics = crate::modules::compute::metrics::compute(&[]);
+        let metrics = crate::modules::compute::metrics::compute(&candles, None);
 
         Self {
             selected_halving: None,
@@ -170,6 +170,10 @@ fn update(state: &mut Halvora, message: Message) {
                 let candles = crate::modules::compute::year_over_year::trailing_365_candles();
                 state.line_chart_state = LineChartState::new(candles);
                 state.volume_sync_start = Instant::now();
+                state.metrics = crate::modules::compute::metrics::compute(
+                    &state.line_chart_state.candles,
+                    state.live_price,
+                );
             }
         }
         Message::LivePrice(price) => {
@@ -191,6 +195,10 @@ fn update(state: &mut Halvora, message: Message) {
                     last.close = price;
                 }
             }
+            state.metrics = crate::modules::compute::metrics::compute(
+                &state.line_chart_state.candles,
+                Some(price),
+            );
         }
         Message::NewDay(_ts) => {
             // Midnight rollover — fetch the new day's candle and refresh the chart.
@@ -198,6 +206,10 @@ fn update(state: &mut Halvora, message: Message) {
             let candles = crate::modules::compute::year_over_year::trailing_365_candles();
             state.line_chart_state = LineChartState::new(candles);
             state.volume_sync_start = Instant::now();
+            state.metrics = crate::modules::compute::metrics::compute(
+                &state.line_chart_state.candles,
+                state.live_price,
+            );
         }
     }
 }
