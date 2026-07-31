@@ -5,6 +5,7 @@ use rusqlite::Connection;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 use crate::modules::compute::metrics::Metrics;
+use crate::modules::compute::year_over_year::Candle;
 use crate::modules::ui::line_chart::LineChartState;
 use crate::modules::ui::scaling::Scaling;
 use crate::modules::ui::mainwindow::dashboard_layout::dashboard;
@@ -55,6 +56,9 @@ struct Halvora {
     sats_per_usd: String,
     all_time_high: String,
     metrics: Metrics,
+    /// Cached Year-Over-Year candles used when the YOY page is active.
+    /// `line_chart_state.candles` holds the currently displayed page's data.
+    yoy_candles: Vec<Candle>,
     line_chart_state: LineChartState,
     volume_sync_start: Instant,
     show_calmar_dialog: bool,
@@ -90,6 +94,7 @@ impl Halvora {
             sats_per_usd: crate::modules::compute::price_stats::sats_per_usd(None),
             all_time_high,
             metrics,
+            yoy_candles: candles.clone(),
             line_chart_state: LineChartState::new(candles),
             volume_sync_start: Instant::now(),
             show_calmar_dialog: false,
@@ -155,10 +160,29 @@ fn update(state: &mut Halvora, message: Message) {
         Message::HalvingSelected(n) => {
             state.selected_halving = Some(n);
             state.yoy_selected = false;
+            // Load this halving period's candles. Future halvings return an
+            // empty set, so `metrics::compute` naturally produces dashes.
+            // Use set_candles so the drawing tool and drawings are preserved.
+            let candles = crate::modules::compute::halving_period::halving_period_candles(n);
+            state.line_chart_state.set_candles(candles);
+            state.metrics = crate::modules::compute::metrics::compute(
+                &state.line_chart_state.candles,
+                state.live_price,
+            );
+            // Close the YOY-only Calmar breakdown if it is open.
+            state.show_calmar_dialog = false;
+            state.line_chart_state.dialog_open.set(false);
         }
         Message::YoYSelected => {
             state.yoy_selected = true;
             state.selected_halving = None;
+            // Restore the cached YOY candles and recompute metrics for them.
+            // Use set_candles so drawings are preserved across page switches.
+            state.line_chart_state.set_candles(state.yoy_candles.clone());
+            state.metrics = crate::modules::compute::metrics::compute(
+                &state.line_chart_state.candles,
+                state.live_price,
+            );
         }
         Message::Tick => {
             crate::modules::api::mempool::rest::halve_blocks::fetch_and_store();
@@ -174,12 +198,17 @@ fn update(state: &mut Halvora, message: Message) {
             if state.volume_sync_start.elapsed() >= Duration::from_secs(3600) {
                 crate::modules::api::bit_stamp::candle_sync::update_today_volume();
                 let candles = crate::modules::compute::year_over_year::trailing_365_candles();
-                state.line_chart_state = LineChartState::new(candles);
+                state.yoy_candles = candles;
                 state.volume_sync_start = Instant::now();
-                state.metrics = crate::modules::compute::metrics::compute(
-                    &state.line_chart_state.candles,
-                    state.live_price,
-                );
+                // Only refresh the active page when YOY is selected; halving
+                // pages keep their empty candle set and dash metrics.
+                if state.yoy_selected {
+                    state.line_chart_state.set_candles(state.yoy_candles.clone());
+                    state.metrics = crate::modules::compute::metrics::compute(
+                        &state.line_chart_state.candles,
+                        state.live_price,
+                    );
+                }
             }
         }
         Message::LivePrice(price) => {
@@ -188,12 +217,26 @@ fn update(state: &mut Halvora, message: Message) {
             state.sats_per_usd = crate::modules::compute::price_stats::sats_per_usd(Some(price));
             state.all_time_high = crate::modules::compute::price_stats::all_time_high(Some(price));
 
-            // Update today's candle close/high/low in the in-memory chart state.
+            // Update today's candle close/high/low in the cached YOY data.
             let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_secs() as i64)
                 .unwrap_or(0);
             let today_midnight = now - (now % 86_400);
+            if let Some(last) = state.yoy_candles.last_mut() {
+                if last.timestamp == today_midnight {
+                    if price > last.high { last.high = price; }
+                    if price < last.low  { last.low = price; }
+                    last.close = price;
+                }
+            }
+
+            // Update the active page's chart state. This covers both YOY and
+            // the live halving period (which ends at today). Completed halving
+            // periods have no today candle, so the update is a no-op for them.
+            if state.yoy_selected {
+                state.line_chart_state.set_candles(state.yoy_candles.clone());
+            }
             if let Some(last) = state.line_chart_state.candles.last_mut() {
                 if last.timestamp == today_midnight {
                     if price > last.high { last.high = price; }
@@ -223,15 +266,20 @@ fn update(state: &mut Halvora, message: Message) {
                 .set(crate::modules::ui::line_chart::state::DrawingMode::Range);
         }
         Message::NewDay(_ts) => {
-            // Midnight rollover — fetch the new day's candle and refresh the chart.
+            // Midnight rollover — fetch the new day's candle and refresh the cache.
             crate::modules::api::bit_stamp::candle_sync::fetch_and_store();
             let candles = crate::modules::compute::year_over_year::trailing_365_candles();
-            state.line_chart_state = LineChartState::new(candles);
+            state.yoy_candles = candles;
             state.volume_sync_start = Instant::now();
-            state.metrics = crate::modules::compute::metrics::compute(
-                &state.line_chart_state.candles,
-                state.live_price,
-            );
+            // Only refresh the active page when YOY is selected; halving
+            // pages keep their empty candle set and dash metrics.
+            if state.yoy_selected {
+                state.line_chart_state.set_candles(state.yoy_candles.clone());
+                state.metrics = crate::modules::compute::metrics::compute(
+                    &state.line_chart_state.candles,
+                    state.live_price,
+                );
+            }
         }
     }
 }

@@ -31,6 +31,10 @@ pub fn view<'a>(
             .border(border::rounded(8).color(theme::DASHBOARD_PLACEHOLDER_BORDER).width(1.5))
     };
 
+    // The chart renders for YOY and for any selected halving. Only when no
+    // page is active do we show the empty placeholder panels.
+    let page_active = yoy_selected || selected_halving.is_some();
+
     let metrics_label: iced::widget::Column<'_, crate::modules::ui::mainwindow::application::Message> = if yoy_selected {
         column![
             text("Year")
@@ -114,7 +118,7 @@ pub fn view<'a>(
     .padding(iced::Padding::new(0.0).left(16.0).right(16.0))
     .style(placeholder_style);
 
-    let price: Element<'a, crate::modules::ui::mainwindow::application::Message> = if yoy_selected {
+    let price: Element<'a, crate::modules::ui::mainwindow::application::Message> = if page_active {
         let chart = container(LineChart::new(chart_state))
             .width(Length::Fill)
             .height(Length::FillPortion(7))
@@ -138,7 +142,7 @@ pub fn view<'a>(
             .into()
     };
 
-    let volume: Element<'a, crate::modules::ui::mainwindow::application::Message> = if yoy_selected {
+    let volume: Element<'a, crate::modules::ui::mainwindow::application::Message> = if page_active {
         container(VolumeChart::new(chart_state))
             .width(Length::Fill)
             .height(Length::FillPortion(2))

@@ -64,6 +64,14 @@ impl LineChartState {
         }
     }
 
+    /// Replace the candle data in place, preserving the drawing tool mode,
+    /// anchored VWAPs, and range annotations.
+    /// Use this instead of `new()` when only the underlying data changes,
+    /// so user drawings and the selected tool are not reset.
+    pub fn set_candles(&mut self, candles: Vec<Candle>) {
+        self.candles = candles;
+    }
+
     /// Add an anchored VWAP starting at the given candle index.
     /// Duplicates are ignored — the same candle cannot anchor more than once.
     pub fn push_anchor(&self, idx: usize) {

@@ -138,10 +138,16 @@ pub fn x_ticks(min_ts: f64, max_ts: f64) -> Vec<Tick> {
     ticks
 }
 
-/// Generate quarter boundary tick marks (Q1, Q2, Q3, Q4).
-/// Returns tick positions for quarter-start months (Jan 1, Apr 1, Jul 1, Oct 1)
+/// A quarter boundary: its timestamp and the quarter number (1..4).
+struct QuarterBoundary {
+    position: f64,
+    quarter: u32,
+    year: i32,
+}
+
+/// Enumerate the quarter-start boundaries (Jan 1, Apr 1, Jul 1, Oct 1)
 /// within [min_ts, max_ts].
-pub fn quarter_ticks(min_ts: f64, max_ts: f64) -> Vec<Tick> {
+fn quarter_boundaries(min_ts: f64, max_ts: f64) -> Vec<QuarterBoundary> {
     if min_ts >= max_ts {
         return Vec::new();
     }
@@ -155,10 +161,10 @@ pub fn quarter_ticks(min_ts: f64, max_ts: f64) -> Vec<Tick> {
     };
 
     let quarter_months = [1u32, 4, 7, 10];
-    let mut ticks = Vec::new();
+    let mut boundaries = Vec::new();
 
     // Walk through all quarter boundaries in the range
-    let mut y = min_dt.year();
+    let mut year = min_dt.year();
     let mut mi = match min_dt.month() {
         1 | 2 | 3 => 0,
         4 | 5 | 6 => 1,
@@ -168,18 +174,18 @@ pub fn quarter_ticks(min_ts: f64, max_ts: f64) -> Vec<Tick> {
 
     loop {
         let qm = quarter_months[mi];
-        if y > max_dt.year() || (y == max_dt.year() && qm > max_dt.month()) {
+        if year > max_dt.year() || (year == max_dt.year() && qm > max_dt.month()) {
             break;
         }
 
-        let tick_str = format!("{:04}-{:02}-01T00:00:00", y, qm);
+        let tick_str = format!("{:04}-{:02}-01T00:00:00", year, qm);
         if let Ok(tick_naive) = NaiveDateTime::parse_from_str(&tick_str, "%Y-%m-%dT%H:%M:%S") {
             let tick_dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(tick_naive, Utc);
             if tick_dt >= min_dt && tick_dt <= max_dt {
-                let label = format!("Q{}", (qm / 3) + 1);
-                ticks.push(Tick {
+                boundaries.push(QuarterBoundary {
                     position: tick_dt.timestamp() as f64,
-                    label,
+                    quarter: (qm / 3) + 1,
+                    year,
                 });
             }
         }
@@ -187,11 +193,65 @@ pub fn quarter_ticks(min_ts: f64, max_ts: f64) -> Vec<Tick> {
         mi += 1;
         if mi >= 4 {
             mi = 0;
-            y += 1;
+            year += 1;
         }
     }
 
-    ticks
+    boundaries
+}
+
+/// Generate quarter boundary tick marks (Q1, Q2, Q3, Q4).
+/// Returns ticks for quarter-start months (Jan 1, Apr 1, Jul 1, Oct 1).
+pub fn quarter_ticks(min_ts: f64, max_ts: f64) -> Vec<Tick> {
+    quarter_boundaries(min_ts, max_ts)
+        .into_iter()
+        .map(|b| Tick {
+            position: b.position,
+            label: format!("Q{}", b.quarter),
+        })
+        .collect()
+}
+
+/// Generate quarter-start month labels, for example "JAN '26".
+/// Returns ticks at the same positions as `quarter_ticks`, but each label is
+/// the starting month of that quarter plus the short year.
+pub fn quarter_month_ticks(min_ts: f64, max_ts: f64) -> Vec<Tick> {
+    quarter_boundaries(min_ts, max_ts)
+        .into_iter()
+        .map(|b| Tick {
+            position: b.position,
+            label: format!("{} '{}", month_abbr(quarter_month(b.quarter)), b.year % 100),
+        })
+        .collect()
+}
+
+/// The starting month (1-based) of a quarter.
+fn quarter_month(quarter: u32) -> u32 {
+    match quarter {
+        1 => 1,
+        2 => 4,
+        3 => 7,
+        _ => 10,
+    }
+}
+
+/// Uppercase three-letter month abbreviation.
+fn month_abbr(month: u32) -> &'static str {
+    match month {
+        1 => "JAN",
+        2 => "FEB",
+        3 => "MAR",
+        4 => "APR",
+        5 => "MAY",
+        6 => "JUN",
+        7 => "JUL",
+        8 => "AUG",
+        9 => "SEP",
+        10 => "OCT",
+        11 => "NOV",
+        12 => "DEC",
+        _ => "???",
+    }
 }
 
 fn advance_month(year: &mut i32, month: &mut u32) {

@@ -214,6 +214,11 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
         match event {
             canvas::Event::Mouse(mouse_event) => match mouse_event {
                 mouse::Event::ButtonPressed(mouse::Button::Left) => {
+                    // Ignore clicks on a page with no data.
+                    if self.data.candles.is_empty() {
+                        state.active_idx = None;
+                        return None;
+                    }
                     if let Some(idx) = state.active_idx {
                         self.data.push_anchor(idx);
                         return Some(canvas::Action::request_redraw().and_capture());
@@ -262,6 +267,15 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
                         width: bounds.width - 120.0,
                         height: bounds.height - 120.0,
                     };
+                    // A page with no data (e.g. a future halving) renders the
+                    // chart with an empty candle set. Guard here so we never
+                    // index into an empty slice.
+                    if self.data.candles.is_empty() {
+                        state.candle = None;
+                        state.active_idx = None;
+                        self.data.hovered_index.set(None);
+                        return Some(canvas::Action::request_redraw().and_capture());
+                    }
                     if position.x >= plot.x
                         && position.x <= plot.x + plot.width
                         && position.y >= plot.y
@@ -575,19 +589,29 @@ fn draw_axes_labels(
         });
     }
 
-    // X-axis date labels (bottom) — month ticks
-    let x_ticks = axis::x_ticks(x_min, x_max);
-    let max_labels = 8;
-    let step = if x_ticks.len() > max_labels {
-        x_ticks.len() / max_labels
-    } else {
-        1
-    };
-    for (i, t) in x_ticks.iter().enumerate() {
-        if i % step != 0 && i != x_ticks.len() - 1 {
+    // X-axis date labels (bottom). Two rows: only the quarter-start month
+    // labels on top, and the quarter labels ("Q1".."Q4") on a second row
+    // below. Both rows enforce a minimum pixel gap between label centers so
+    // they never overlap, regardless of plot width or how many quarters are
+    // shown.
+    const MIN_LABEL_SPACING_PX: f32 = 70.0;
+
+    // Top row: quarter-start month labels (e.g. "JAN '26").
+    let m_ticks = axis::quarter_month_ticks(x_min, x_max);
+    let mut last_label_x: Option<f32> = None;
+    for (i, t) in m_ticks.iter().enumerate() {
+        let is_last = i == m_ticks.len() - 1;
+        let x = data_x_to_screen(t.position, x_min, x_max, plot);
+        if x < plot.x || x > plot.x + plot.width {
             continue;
         }
-        let x = data_x_to_screen(t.position, x_min, x_max, plot);
+        let spaced = match last_label_x {
+            None => true,
+            Some(prev_x) => (x - prev_x).abs() >= MIN_LABEL_SPACING_PX,
+        };
+        if !spaced && !is_last {
+            continue;
+        }
         frame.fill_text(canvas::Text {
             content: t.label.clone(),
             position: Point::new(x, plot.y + plot.height + 8.0),
@@ -598,16 +622,27 @@ fn draw_axes_labels(
             align_y: iced::alignment::Vertical::Top,
             ..canvas::Text::default()
         });
+        last_label_x = Some(x);
     }
 
-    // Quarter labels below month labels
-    for q in axis::quarter_ticks(x_min, x_max) {
-        let x = data_x_to_screen(q.position, x_min, x_max, plot);
+    // Bottom row: quarter labels (e.g. "Q1").
+    let q_ticks = axis::quarter_ticks(x_min, x_max);
+    let mut last_q_x: Option<f32> = None;
+    for (i, t) in q_ticks.iter().enumerate() {
+        let is_last = i == q_ticks.len() - 1;
+        let x = data_x_to_screen(t.position, x_min, x_max, plot);
         if x < plot.x || x > plot.x + plot.width {
             continue;
         }
+        let spaced = match last_q_x {
+            None => true,
+            Some(prev_x) => (x - prev_x).abs() >= MIN_LABEL_SPACING_PX,
+        };
+        if !spaced && !is_last {
+            continue;
+        }
         frame.fill_text(canvas::Text {
-            content: q.label.clone(),
+            content: t.label.clone(),
             position: Point::new(x, plot.y + plot.height + 24.0),
             color: TEXT_COLOR,
             size: 12.0.into(),
@@ -616,6 +651,7 @@ fn draw_axes_labels(
             align_y: iced::alignment::Vertical::Top,
             ..canvas::Text::default()
         });
+        last_q_x = Some(x);
     }
 }
 
