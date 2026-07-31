@@ -1,6 +1,30 @@
 use std::cell::{Cell, RefCell};
 use crate::modules::compute::year_over_year::Candle;
 
+/// Which drawing tool is currently active on the chart.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DrawingMode {
+    /// Anchored VWAP lines — left-click to anchor, right-click to remove.
+    AVWAP,
+    /// Range selection tool (future).
+    Range,
+}
+
+impl Default for DrawingMode {
+    fn default() -> Self {
+        Self::AVWAP
+    }
+}
+
+/// A completed range annotation on the chart.
+#[derive(Debug, Clone, Copy)]
+pub struct RangeBox {
+    pub from_ts: f64,
+    pub from_price: f64,
+    pub to_ts: f64,
+    pub to_price: f64,
+}
+
 /// Holds all data and viewport state for the line chart.
 pub struct LineChartState {
     /// OHLC candles sorted by timestamp ascending.
@@ -11,6 +35,17 @@ pub struct LineChartState {
     /// Anchored VWAP start indices (candle indices in insertion order).
     /// Users left-click to add, right-click near a line to remove.
     pub anchored_vwaps: RefCell<Vec<usize>>,
+    /// When true, the chart ignores mouse events (e.g. a modal is open).
+    pub dialog_open: Cell<bool>,
+    /// Which drawing tool is currently selected.
+    pub drawing_mode: Cell<DrawingMode>,
+    /// Completed range boxes drawn on the chart.
+    pub ranges: RefCell<Vec<RangeBox>>,
+    /// During range placement: (from_ts, from_price) after first click, then
+    /// `None` when placement concludes or is cancelled.
+    pub range_pending: Cell<Option<(f64, f64)>>,
+    /// During range placement: current cursor position for live preview.
+    pub range_preview: Cell<Option<(f64, f64)>>,
 }
 
 impl LineChartState {
@@ -21,6 +56,11 @@ impl LineChartState {
             candles,
             hovered_index: Cell::new(None),
             anchored_vwaps: RefCell::new(Vec::new()),
+            dialog_open: Cell::new(false),
+            drawing_mode: Cell::new(DrawingMode::default()),
+            ranges: RefCell::new(Vec::new()),
+            range_pending: Cell::new(None),
+            range_preview: Cell::new(None),
         }
     }
 

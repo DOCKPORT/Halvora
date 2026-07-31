@@ -138,6 +138,62 @@ pub fn x_ticks(min_ts: f64, max_ts: f64) -> Vec<Tick> {
     ticks
 }
 
+/// Generate quarter boundary tick marks (Q1, Q2, Q3, Q4).
+/// Returns tick positions for quarter-start months (Jan 1, Apr 1, Jul 1, Oct 1)
+/// within [min_ts, max_ts].
+pub fn quarter_ticks(min_ts: f64, max_ts: f64) -> Vec<Tick> {
+    if min_ts >= max_ts {
+        return Vec::new();
+    }
+    let min_dt = match DateTime::from_timestamp(min_ts as i64, 0) {
+        Some(dt) => dt,
+        None => return Vec::new(),
+    };
+    let max_dt = match DateTime::from_timestamp(max_ts as i64, 0) {
+        Some(dt) => dt,
+        None => return Vec::new(),
+    };
+
+    let quarter_months = [1u32, 4, 7, 10];
+    let mut ticks = Vec::new();
+
+    // Walk through all quarter boundaries in the range
+    let mut y = min_dt.year();
+    let mut mi = match min_dt.month() {
+        1 | 2 | 3 => 0,
+        4 | 5 | 6 => 1,
+        7 | 8 | 9 => 2,
+        _ => 3,
+    };
+
+    loop {
+        let qm = quarter_months[mi];
+        if y > max_dt.year() || (y == max_dt.year() && qm > max_dt.month()) {
+            break;
+        }
+
+        let tick_str = format!("{:04}-{:02}-01T00:00:00", y, qm);
+        if let Ok(tick_naive) = NaiveDateTime::parse_from_str(&tick_str, "%Y-%m-%dT%H:%M:%S") {
+            let tick_dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(tick_naive, Utc);
+            if tick_dt >= min_dt && tick_dt <= max_dt {
+                let label = format!("Q{}", (qm / 3) + 1);
+                ticks.push(Tick {
+                    position: tick_dt.timestamp() as f64,
+                    label,
+                });
+            }
+        }
+
+        mi += 1;
+        if mi >= 4 {
+            mi = 0;
+            y += 1;
+        }
+    }
+
+    ticks
+}
+
 fn advance_month(year: &mut i32, month: &mut u32) {
     *month += 1;
     if *month > 12 {

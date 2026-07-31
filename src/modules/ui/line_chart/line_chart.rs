@@ -12,6 +12,7 @@ use super::axis;
 use super::state::LineChartState;
 use crate::modules::compute::vwap::progressive_vwap;
 use crate::modules::compute::year_over_year::Candle;
+use crate::modules::ui::mainwindow::dashboard_layout::drawing_tools;
 
 /// Crosshair state tracked internally by the canvas program on mouse move.
 #[derive(Default, Clone, Copy)]
@@ -106,7 +107,10 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
                 .with_width(1.0),
         );
 
-        // 3. Price line with fill
+        // 3. Quarter boundary lines (behind price content)
+        draw_quarter_lines(&mut frame, &plot, x_min, x_max);
+
+        // 4. Price line with fill
         draw_price_line(
             &mut frame,
             &plot,
@@ -117,7 +121,7 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
             y_max,
         );
 
-        // 4. Progressive VWAP line (white, on top of price line)
+        // 5. Progressive VWAP line (white, on top of price line)
         draw_vwap_line(
             &mut frame,
             &plot,
@@ -128,8 +132,8 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
             y_max,
         );
 
-        // 5. Anchored VWAP lines (also white, same style)
-        draw_anchored_vwaps(
+        // 6. Anchored VWAP lines (also white, same style)
+        drawing_tools::draw_anchored_vwaps(
             &mut frame,
             &plot,
             &self.data.candles,
@@ -160,6 +164,13 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
             );
         }
 
+        // 8. Range boxes (completed + preview) — drawn on top of everything
+        drawing_tools::draw_ranges(
+            &mut frame, &plot,
+            x_min, x_max, y_min, y_max,
+            self.data,
+        );
+
         vec![frame.into_geometry()]
     }
 
@@ -170,6 +181,36 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
         bounds: Rectangle,
         cursor: mouse::Cursor,
     ) -> Option<canvas::Action<Message>> {
+        // When a modal dialog is open, ignore all mouse events on the canvas.
+        if self.data.dialog_open.get() {
+            return None;
+        }
+        // In Range mode, process clicks for range placement but let cursor
+        // events fall through so crosshair tracking still works.
+        if self.data.drawing_mode.get() == crate::modules::ui::line_chart::state::DrawingMode::Range {
+            use crate::modules::ui::mainwindow::dashboard_layout::drawing_tools::RangeActionResult;
+            if let canvas::Event::Mouse(mouse::Event::ButtonPressed(_)) = event {
+                return match drawing_tools::handle_range_event(event, bounds, cursor, self.data) {
+                    RangeActionResult::RedrawAndCapture => {
+                        Some(canvas::Action::request_redraw().and_capture())
+                    }
+                    RangeActionResult::Redraw => {
+                        Some(canvas::Action::request_redraw())
+                    }
+                    RangeActionResult::None => None,
+                };
+            }
+            // Also handle CursorMoved for live preview update
+            if let canvas::Event::Mouse(mouse::Event::CursorMoved { .. }) = event {
+                match drawing_tools::handle_range_event(event, bounds, cursor, self.data) {
+                    RangeActionResult::Redraw => {
+                        // Still need to update crosshair too, so fall through
+                    }
+                    _ => {}
+                }
+            }
+        }
+
         match event {
             canvas::Event::Mouse(mouse_event) => match mouse_event {
                 mouse::Event::ButtonPressed(mouse::Button::Left) => {
@@ -196,7 +237,7 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
                         {
                             let (x_min, x_max) = self.data.x_bounds();
                             let (y_min, y_max) = self.data.y_bounds();
-                            if let Some(list_idx) = hit_test_anchored_vwaps(
+                            if let Some(list_idx) = drawing_tools::hit_test_anchored_vwaps(
                                 cursor_pt.x as f64,
                                 cursor_pt.y as f64,
                                 &plot,
@@ -339,9 +380,6 @@ const GREY_FILL: Color = Color::from_rgba(0.5, 0.5, 0.5, 0.1);
 const TEXT_COLOR: Color = Color::from_rgb(0.7, 0.7, 0.7);
 const CROSSHAIR_COLOR: Color = Color::from_rgba(0.8, 0.8, 0.8, 0.5);
 const VWAP_COLOR: Color = Color::WHITE;
-
-/// Tolerance in screen pixels for right-click hit-testing on anchored VWAP lines.
-const VWAP_HIT_TOLERANCE: f64 = 5.0;
 
 /// Determine the line and fill colour based on price trend.
 /// Up: green, Down: red, Flat: grey.
@@ -494,125 +532,23 @@ fn draw_vwap_line(
     frame.stroke(&path, Stroke::default().with_color(VWAP_COLOR).with_width(1.5));
 }
 
-/// Draw anchored VWAP lines (white, 1.5px) starting from user-selected candle indices.
-///
-/// Each anchor corresponds to a left-click on a candle. The VWAP is computed
-/// from that candle's close/volume through all subsequent candles.
-fn draw_anchored_vwaps(
-    frame: &mut Frame,
-    plot: &Rectangle,
-    candles: &[Candle],
-    x_min: f64,
-    x_max: f64,
-    y_min: f64,
-    y_max: f64,
-    anchors: &[usize],
-) {
-    for &anchor_idx in anchors {
-        if anchor_idx >= candles.len() {
+/// Draw subtle vertical lines at quarter boundaries (behind price content).
+fn draw_quarter_lines(frame: &mut Frame, plot: &Rectangle, x_min: f64, x_max: f64) {
+    let qcolor = Color::from_rgba(0.6, 0.6, 0.6, 0.3);
+    for q in axis::quarter_ticks(x_min, x_max) {
+        let x = data_x_to_screen(q.position, x_min, x_max, plot);
+        if x < plot.x || x > plot.x + plot.width {
             continue;
         }
-
-        // Subslice from anchor to end
-        let sub_candles = &candles[anchor_idx..];
-        let pairs: Vec<(f64, f64)> = sub_candles
-            .iter()
-            .map(|c| (c.close, c.volume))
-            .collect();
-
-        let vwaps = progressive_vwap(&pairs);
-
-        // Collect (timestamp, vwap) for points that are Some
-        let points: Vec<(f64, f64)> = sub_candles
-            .iter()
-            .zip(vwaps.iter())
-            .filter_map(|(c, v)| v.map(|vwap| (c.timestamp as f64, vwap)))
-            .collect();
-
-        if points.len() < 2 {
-            continue;
-        }
-
         let path = Path::new(|p| {
-            let first_x = data_x_to_screen(points[0].0, x_min, x_max, plot);
-            let first_y = data_y_to_screen(points[0].1, y_min, y_max, plot);
-            p.move_to(Point::new(first_x, first_y));
-
-            for &(ts, vwap) in &points[1..] {
-                let x = data_x_to_screen(ts, x_min, x_max, plot);
-                let y = data_y_to_screen(vwap, y_min, y_max, plot);
-                p.line_to(Point::new(x, y));
-            }
+            p.move_to(Point::new(x, plot.y));
+            p.line_to(Point::new(x, plot.y + plot.height));
         });
-
-        frame.stroke(&path, Stroke::default().with_color(VWAP_COLOR).with_width(1.5));
+        frame.stroke(
+            &path,
+            Stroke::default().with_color(qcolor).with_width(1.0),
+        );
     }
-}
-
-/// Hit-test against all anchored VWAP lines. Returns the list index of the
-/// anchor whose line segment is within `VWAP_HIT_TOLERANCE` screen pixels
-/// of `(cursor_x, cursor_y)`. Returns `None` if no line is close enough.
-fn hit_test_anchored_vwaps(
-    cursor_x: f64,
-    cursor_y: f64,
-    plot: &Rectangle,
-    x_min: f64,
-    x_max: f64,
-    y_min: f64,
-    y_max: f64,
-    candles: &[Candle],
-    anchors: &[usize],
-) -> Option<usize> {
-    for (list_idx, &anchor_idx) in anchors.iter().enumerate() {
-        if anchor_idx >= candles.len() {
-            continue;
-        }
-
-        let sub_candles = &candles[anchor_idx..];
-        let pairs: Vec<(f64, f64)> = sub_candles
-            .iter()
-            .map(|c| (c.close, c.volume))
-            .collect();
-        let vwaps = progressive_vwap(&pairs);
-
-        // Build screen-space segments
-        let mut prev_pt: Option<(f64, f64)> = None;
-        for (c, v) in sub_candles.iter().zip(vwaps.iter()) {
-            if let Some(vwap) = v {
-                let sx = data_x_to_screen(c.timestamp as f64, x_min, x_max, plot) as f64;
-                let sy = data_y_to_screen(*vwap, y_min, y_max, plot) as f64;
-
-                if let Some((px, py)) = prev_pt {
-                    let dist = point_to_segment_distance(cursor_x, cursor_y, px, py, sx, sy);
-                    if dist <= VWAP_HIT_TOLERANCE {
-                        return Some(list_idx);
-                    }
-                }
-                prev_pt = Some((sx, sy));
-            } else {
-                prev_pt = None;
-            }
-        }
-    }
-    None
-}
-
-/// Compute the minimum distance from point `p` to the line segment `(a, b)`.
-fn point_to_segment_distance(px: f64, py: f64, ax: f64, ay: f64, bx: f64, by: f64) -> f64 {
-    let abx = bx - ax;
-    let aby = by - ay;
-    let apx = px - ax;
-    let apy = py - ay;
-
-    let t = (apx * abx + apy * aby) / (abx * abx + aby * aby);
-    let t = t.clamp(0.0, 1.0);
-
-    let cx = ax + t * abx;
-    let cy = ay + t * aby;
-
-    let dx = px - cx;
-    let dy = py - cy;
-    (dx * dx + dy * dy).sqrt()
 }
 
 fn draw_axes_labels(
@@ -639,22 +575,40 @@ fn draw_axes_labels(
         });
     }
 
-    // X-axis date labels (bottom)
-    let ticks = axis::x_ticks(x_min, x_max);
+    // X-axis date labels (bottom) — month ticks
+    let x_ticks = axis::x_ticks(x_min, x_max);
     let max_labels = 8;
-    let step = if ticks.len() > max_labels {
-        ticks.len() / max_labels
+    let step = if x_ticks.len() > max_labels {
+        x_ticks.len() / max_labels
     } else {
         1
     };
-    for (i, t) in ticks.iter().enumerate() {
-        if i % step != 0 && i != ticks.len() - 1 {
+    for (i, t) in x_ticks.iter().enumerate() {
+        if i % step != 0 && i != x_ticks.len() - 1 {
             continue;
         }
         let x = data_x_to_screen(t.position, x_min, x_max, plot);
         frame.fill_text(canvas::Text {
             content: t.label.clone(),
             position: Point::new(x, plot.y + plot.height + 8.0),
+            color: TEXT_COLOR,
+            size: 12.0.into(),
+            font: iced::Font::with_name("Geist Mono"),
+            align_x: text::Alignment::Center,
+            align_y: iced::alignment::Vertical::Top,
+            ..canvas::Text::default()
+        });
+    }
+
+    // Quarter labels below month labels
+    for q in axis::quarter_ticks(x_min, x_max) {
+        let x = data_x_to_screen(q.position, x_min, x_max, plot);
+        if x < plot.x || x > plot.x + plot.width {
+            continue;
+        }
+        frame.fill_text(canvas::Text {
+            content: q.label.clone(),
+            position: Point::new(x, plot.y + plot.height + 24.0),
             color: TEXT_COLOR,
             size: 12.0.into(),
             font: iced::Font::with_name("Geist Mono"),
@@ -698,7 +652,7 @@ fn draw_crosshair(
         }
     }
 
-    // Price readout — date, close price, and VWAP (top-right corner)
+    // Price readout — date, close price, and VWAP (top-left corner)
     fn fmt_price_with_commas(p: f64) -> String {
         let whole = p.trunc() as i64;
         let cents = ((p - p.trunc()) * 100.0).round() as u64;
@@ -746,7 +700,7 @@ fn draw_crosshair(
 
     let label = if let Some(dt) = DateTime::from_timestamp(candle.timestamp, 0) {
         format!(
-            "{} {} '{} \u{2014} C: {}{}",
+            "{} {} '{} \u{2014} H: {}  L: {}  C: {}{}",
             dt.day(),
             match dt.month() {
                 1 => "Jan", 2 => "Feb", 3 => "Mar", 4 => "Apr",
@@ -755,11 +709,19 @@ fn draw_crosshair(
                 _ => "???",
             },
             dt.year() % 100,
+            fmt_price_with_commas(candle.high),
+            fmt_price_with_commas(candle.low),
             fmt_price_with_commas(candle.close),
             vwap_label,
         )
     } else {
-        format!("{}{}", fmt_price_with_commas(candle.close), vwap_label)
+        format!(
+            "H: {}  L: {}  C: {}{}",
+            fmt_price_with_commas(candle.high),
+            fmt_price_with_commas(candle.low),
+            fmt_price_with_commas(candle.close),
+            vwap_label,
+        )
     };
 
     frame.fill_text(canvas::Text {

@@ -1,4 +1,4 @@
-use iced::widget::row;
+use iced::widget::{container, mouse_area, row, text};
 use iced::{Element, Subscription, window, Font, Length};
 use iced::window::Position;
 use rusqlite::Connection;
@@ -57,6 +57,7 @@ struct Halvora {
     metrics: Metrics,
     line_chart_state: LineChartState,
     volume_sync_start: Instant,
+    show_calmar_dialog: bool,
 }
 
 impl Halvora {
@@ -91,6 +92,7 @@ impl Halvora {
             metrics,
             line_chart_state: LineChartState::new(candles),
             volume_sync_start: Instant::now(),
+            show_calmar_dialog: false,
         }
     }
 
@@ -134,6 +136,10 @@ pub enum Message {
     Tick,
     LivePrice(f64),
     NewDay(i64),
+    CalmarClicked,
+    CloseCalmarDialog,
+    SelectAVWAP,
+    SelectRange,
 }
 
 fn subscription(_state: &Halvora) -> Subscription<Message> {
@@ -200,6 +206,22 @@ fn update(state: &mut Halvora, message: Message) {
                 Some(price),
             );
         }
+        Message::CalmarClicked => {
+            state.show_calmar_dialog = true;
+            state.line_chart_state.dialog_open.set(true);
+        }
+        Message::CloseCalmarDialog => {
+            state.show_calmar_dialog = false;
+            state.line_chart_state.dialog_open.set(false);
+        }
+        Message::SelectAVWAP => {
+            state.line_chart_state.drawing_mode
+                .set(crate::modules::ui::line_chart::state::DrawingMode::AVWAP);
+        }
+        Message::SelectRange => {
+            state.line_chart_state.drawing_mode
+                .set(crate::modules::ui::line_chart::state::DrawingMode::Range);
+        }
         Message::NewDay(_ts) => {
             // Midnight rollover — fetch the new day's candle and refresh the chart.
             crate::modules::api::bit_stamp::candle_sync::fetch_and_store();
@@ -215,7 +237,7 @@ fn update(state: &mut Halvora, message: Message) {
 }
 
 fn view(state: &Halvora) -> Element<'_, Message> {
-    row![
+    let main_content: Element<'_, Message> = row![
         halving_sidebar::view(state.selected_halving, state.yoy_selected),
         dashboard::view(
             state.selected_halving,
@@ -227,5 +249,100 @@ fn view(state: &Halvora) -> Element<'_, Message> {
     ]
     .width(Length::Fill)
     .height(Length::Fill)
-    .into()
+    .into();
+
+    if state.show_calmar_dialog {
+        // Semi-transparent overlay
+        let overlay = container(
+            container(
+                iced::widget::column![
+                    text("Calmar Ratio Details")
+                        .size(20)
+                        .color(iced::Color::WHITE)
+                        .font(iced::Font::with_name("Geist Mono")),
+                    text("─")
+                        .size(12)
+                        .color(iced::Color::from_rgb(0.4, 0.4, 0.4))
+                        .font(iced::Font::with_name("Geist Mono")),
+                    text("Formula: Annualized Return ÷ Max Drawdown")
+                        .size(13)
+                        .color(iced::Color::from_rgb(0.8, 0.8, 0.8))
+                        .font(iced::Font::with_name("Geist Mono")),
+                    text("• Daily P/L%: (Close − Open) / Open")
+                        .size(12)
+                        .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
+                        .font(iced::Font::with_name("Geist Mono")),
+                    text("• Weighted Avg: Σ(P/L% × Vol) / Σ(Vol)")
+                        .size(12)
+                        .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
+                        .font(iced::Font::with_name("Geist Mono")),
+                    text("• Annualized: Weighted Avg × 365")
+                        .size(12)
+                        .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
+                        .font(iced::Font::with_name("Geist Mono")),
+                    text("• Ratio: Annualized / Max DD")
+                        .size(12)
+                        .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
+                        .font(iced::Font::with_name("Geist Mono")),
+                    text("─")
+                        .size(12)
+                        .color(iced::Color::from_rgb(0.4, 0.4, 0.4))
+                        .font(iced::Font::with_name("Geist Mono")),
+                    text(format!("Weighted Avg P/L:  {}", &state.metrics.calmar_breakdown.weighted_avg_pl))
+                        .size(14)
+                        .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
+                        .font(iced::Font::with_name("Geist Mono")),
+                    text(format!("Annualized Return:  {}", &state.metrics.calmar_breakdown.annualized_return))
+                        .size(14)
+                        .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
+                        .font(iced::Font::with_name("Geist Mono")),
+                    text(format!("Max Drawdown:  {}", &state.metrics.calmar_breakdown.max_drawdown))
+                        .size(14)
+                        .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
+                        .font(iced::Font::with_name("Geist Mono")),
+                    text(format!("Calmar Ratio:  {}", &state.metrics.calmar_breakdown.ratio))
+                        .size(14)
+                        .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
+                        .font(iced::Font::with_name("Geist Mono")),
+                    iced::widget::button(
+                        text("Close")
+                            .size(14)
+                            .color(iced::Color::WHITE)
+                    )
+                    .on_press(Message::CloseCalmarDialog)
+                    .padding(iced::Padding::new(8.0).horizontal(16.0))
+                    .style(|_theme, _status| iced::widget::button::Style {
+                        background: Some(iced::Background::Color(iced::Color::from_rgb(0.3, 0.3, 0.3))),
+                        border: iced::border::rounded(6),
+                        shadow: Default::default(),
+                        text_color: Default::default(),
+                        snap: false,
+                    }),
+                ]
+                .spacing(12)
+                .align_x(iced::Alignment::Center)
+                .padding(32),
+            )
+            .width(Length::Fixed(400.0))
+            .style(|_theme| container::Style {
+                background: Some(iced::Background::Color(iced::Color::from_rgb(0.15, 0.15, 0.15))),
+                border: iced::border::rounded(12)
+                    .color(iced::Color::from_rgb(0.3, 0.3, 0.3))
+                    .width(1.5),
+                ..Default::default()
+            }),
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .style(|_theme| container::Style {
+            background: Some(iced::Background::Color(iced::Color::from_rgba(0.0, 0.0, 0.0, 0.6))),
+            ..Default::default()
+        })
+        .align_x(iced::Alignment::Center)
+        .align_y(iced::Alignment::Center);
+
+        iced::widget::stack(vec![main_content, mouse_area(overlay).into()]).into()
+    } else {
+        main_content
+    }
 }

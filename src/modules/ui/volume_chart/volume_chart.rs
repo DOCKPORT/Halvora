@@ -100,10 +100,29 @@ impl<Message> canvas::Program<Message> for VolumeChartProgram<'_> {
         // 3. Volume bars
         draw_bars(&mut frame, &plot, candles, x_min, x_max, y_min, y_max);
 
-        // 4. Y-axis labels
+        // 4. Quarter vertical lines (aligned with line chart)
+        let quarter_color = Color::from_rgba(0.6, 0.6, 0.6, 0.3);
+        for q in crate::modules::ui::line_chart::axis::quarter_ticks(x_min, x_max) {
+            let x = data_x_to_screen(q.position, x_min, x_max, &plot);
+            if x < plot.x || x > plot.x + plot.width {
+                continue;
+            }
+            let qline_path = Path::new(|p| {
+                p.move_to(Point::new(x, plot.y));
+                p.line_to(Point::new(x, plot.y + plot.height));
+            });
+            frame.stroke(
+                &qline_path,
+                Stroke::default()
+                    .with_color(quarter_color)
+                    .with_width(1.0),
+            );
+        }
+
+        // 5. Y-axis labels
         draw_axis_labels(&mut frame, &plot, y_min, y_max);
 
-        // 5. Crosshair vertical line synced from the line chart
+        // 6. Crosshair vertical line synced from the line chart
         if let Some(idx) = self.chart_state.hovered_index.get() {
             if idx < candles.len() {
                 let x = data_x_to_screen(candles[idx].timestamp as f64, x_min, x_max, &plot);
@@ -117,7 +136,7 @@ impl<Message> canvas::Program<Message> for VolumeChartProgram<'_> {
             }
         }
 
-        // 6. Volume tooltip in top-left corner
+        // 7. Volume tooltip in top-left corner
         let tooltip_idx = self.chart_state.hovered_index.get()
             .or_else(|| today_candle(candles).map(|(_, idx)| idx));
         if let Some(idx) = tooltip_idx {

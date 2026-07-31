@@ -1,5 +1,14 @@
 use crate::modules::compute::year_over_year::Candle;
 
+/// Intermediate values used to compute the Calmar ratio, shown in the detail dialog.
+#[derive(Debug, Clone)]
+pub struct CalmarBreakdown {
+    pub weighted_avg_pl: String,
+    pub annualized_return: String,
+    pub max_drawdown: String,
+    pub ratio: String,
+}
+
 /// Display-ready values for the top metric cards.
 #[derive(Debug, Clone)]
 pub struct Metrics {
@@ -9,6 +18,7 @@ pub struct Metrics {
     pub draw_down: String,
     pub run_up: String,
     pub calmar: String,
+    pub calmar_breakdown: CalmarBreakdown,
 }
 
 /// Compute all top-bar metrics from a slice of daily candles and an
@@ -69,25 +79,28 @@ pub fn compute(candles: &[Candle], live_price: Option<f64>) -> Metrics {
 
     // Max Drawdown: largest peak-to-trough decline using high/low.
     // Tracks running peak high, then (peak - low) / peak at each candle.
-    let draw_down = if candles.is_empty() {
-        dash.clone()
+    // Computed as a float (percentage) first, so it can be reused by Calmar.
+    let max_dd = if candles.is_empty() {
+        0.0
     } else {
         let mut peak_high = candles[0].high;
-        let mut max_dd = 0.0_f64;
+        let mut dd = 0.0_f64;
         for c in candles {
             if c.high > peak_high {
                 peak_high = c.high;
             }
-            let dd = (peak_high - c.low) / peak_high * 100.0;
-            if dd > max_dd {
-                max_dd = dd;
+            let decline = (peak_high - c.low) / peak_high * 100.0;
+            if decline > dd {
+                dd = decline;
             }
         }
-        if max_dd < 0.001 {
-            dash.clone()
-        } else {
-            format!("{:.2}%", max_dd)
-        }
+        dd
+    };
+
+    let draw_down = if max_dd < 0.001 {
+        dash.clone()
+    } else {
+        format!("{:.2}%", max_dd)
     };
 
     // Max Run-up: largest trough-to-peak rise using high/low.
@@ -113,12 +126,56 @@ pub fn compute(candles: &[Candle], live_price: Option<f64>) -> Metrics {
         }
     };
 
+    // Calmar Ratio:
+    //   1. Daily P/L% = (close - open) / open for each candle
+    //   2. Volume-weighted average of daily returns
+    //   3. Annualize: × 365
+    //   4. Ratio = annualized return / (max_drawdown / 100)
+    let (calmar, calmar_breakdown) = if candles.is_empty() || max_dd < 0.001 {
+        (dash.clone(), CalmarBreakdown {
+            weighted_avg_pl: dash.clone(),
+            annualized_return: dash.clone(),
+            max_drawdown: dash.clone(),
+            ratio: dash.clone(),
+        })
+    } else {
+        let mut weighted_sum = 0.0_f64;
+        let mut total_vol = 0.0_f64;
+        for c in candles {
+            if c.open != 0.0 {
+                let daily_pl = (c.close - c.open) / c.open; // decimal
+                weighted_sum += daily_pl * c.volume;
+                total_vol += c.volume;
+            }
+        }
+        if total_vol <= 0.0 {
+            (dash.clone(), CalmarBreakdown {
+                weighted_avg_pl: dash.clone(),
+                annualized_return: dash.clone(),
+                max_drawdown: dash.clone(),
+                ratio: dash.clone(),
+            })
+        } else {
+            let avg_daily_return = weighted_sum / total_vol;
+            let annualized = avg_daily_return * 365.0;
+            let ratio = annualized / (max_dd / 100.0);
+            let calmar_str = format!("{:.2}", ratio);
+            (calmar_str.clone(), CalmarBreakdown {
+                weighted_avg_pl: format!("{:.4}%", avg_daily_return * 100.0),
+                annualized_return: format!("{:.2}%", annualized * 100.0),
+                max_drawdown: format!("{:.2}%", max_dd),
+                ratio: calmar_str,
+            })
+        }
+    };
+
     Metrics {
         p_l,
         high,
         low,
         draw_down,
         run_up,
-        calmar: dash,
+        calmar,
+        calmar_breakdown,
     }
 }

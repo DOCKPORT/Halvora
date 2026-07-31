@@ -4,6 +4,7 @@ use crate::modules::compute::metrics::Metrics;
 use crate::modules::ui::line_chart::{LineChart, LineChartState};
 use crate::modules::ui::theme;
 use crate::modules::ui::volume_chart::VolumeChart;
+use super::drawing_tools;
 use super::metric_labels;
 
 fn ordinal_suffix(n: u32) -> &'static str {
@@ -99,7 +100,10 @@ pub fn view<'a>(
         row![
             metrics_label,
             iced::widget::space().width(16),
-            metric_labels::view(metrics),
+            metric_labels::view(
+                metrics,
+                crate::modules::ui::mainwindow::application::Message::CalmarClicked,
+            ),
         ]
         .width(Length::Fill)
         .height(Length::Fill)
@@ -111,11 +115,21 @@ pub fn view<'a>(
     .style(placeholder_style);
 
     let price: Element<'a, crate::modules::ui::mainwindow::application::Message> = if yoy_selected {
-        container(LineChart::new(chart_state))
+        let chart = container(LineChart::new(chart_state))
             .width(Length::Fill)
             .height(Length::FillPortion(7))
-            .style(placeholder_style)
-            .into()
+            .style(placeholder_style);
+
+        let tools = container(
+            drawing_tools::view(chart_state.drawing_mode.get())
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .align_x(iced::Alignment::End)
+        .align_y(iced::Alignment::Start)
+        .padding(iced::Padding::new(8.0));
+
+        iced::widget::stack(vec![chart.into(), tools.into()]).into()
     } else {
         container(iced::widget::column![])
             .width(Length::Fill)

@@ -59,14 +59,27 @@ fn p_l_color(val: &str) -> Color {
 
 pub fn view<'a>(
     metrics: &'a Metrics,
+    calmar_click: crate::modules::ui::mainwindow::application::Message,
 ) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
+    let calmar_card = metric_card("Calmar", &metrics.calmar, theme::HALVING_BUTTON_TEXT);
+    let calmar_button = iced::widget::button(calmar_card)
+        .on_press(calmar_click)
+        .padding(0)
+        .style(|_theme, _status| iced::widget::button::Style {
+            background: None,
+            border: iced::border::rounded(0),
+            shadow: Default::default(),
+            text_color: Default::default(),
+            snap: false,
+        });
+
     Row::with_children(vec![
         metric_card("P/L", &metrics.p_l, p_l_color(&metrics.p_l)),
         metric_card("High", &metrics.high, theme::HALVING_BUTTON_TEXT),
         metric_card("Low", &metrics.low, theme::HALVING_BUTTON_TEXT),
         metric_card("Max Draw-Down", &metrics.draw_down, theme::HALVING_BUTTON_TEXT),
         metric_card("Max Run-Up", &metrics.run_up, theme::HALVING_BUTTON_TEXT),
-        metric_card("Calmar", &metrics.calmar, theme::HALVING_BUTTON_TEXT),
+        calmar_button.into(),
     ])
     .spacing(8)
     .width(Length::Fill)
