@@ -56,6 +56,12 @@ struct Halvora {
     sats_per_usd: String,
     all_time_high: String,
     metrics: Metrics,
+    /// ETA to the selected halving, shown on future halving pages that have
+    /// no data yet. `None` when YOY is active or no halving is selected.
+    selected_halving_eta: Option<String>,
+    /// Block subsidy of the selected halving in BTC, shown on future halving
+    /// pages. `None` when YOY is active or no halving is selected.
+    selected_halving_subsidy: Option<String>,
     /// Cached Year-Over-Year candles used when the YOY page is active.
     /// `line_chart_state.candles` holds the currently displayed page's data.
     yoy_candles: Vec<Candle>,
@@ -65,6 +71,28 @@ struct Halvora {
 }
 
 impl Halvora {
+    /// Decide the "current" price used by the metric bar's P/L.
+    ///
+    /// A completed period ends in the past, so its last candle close is the
+    /// true end and the websocket price must not feed the P/L. A live period
+    /// (YOY, or the current halving) ends today, so the websocket price is
+    /// the running close.
+    fn metric_current_price(state: &Halvora) -> Option<f64> {
+        let last_ts = state.line_chart_state.candles.last().map(|c| c.timestamp)?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        let today_midnight = now - (now % 86_400);
+        if last_ts == today_midnight {
+            // Live period: use the websocket price as today's running close.
+            state.live_price
+        } else {
+            // Completed period: use its final candle close.
+            state.line_chart_state.candles.last().map(|c| c.close)
+        }
+    }
+
     fn new() -> Self {
         let current_tip_height = Self::load_tip_height();
         let current_subsidy_sat = Self::load_current_subsidy();
@@ -94,6 +122,8 @@ impl Halvora {
             sats_per_usd: crate::modules::compute::price_stats::sats_per_usd(None),
             all_time_high,
             metrics,
+            selected_halving_eta: None,
+            selected_halving_subsidy: None,
             yoy_candles: candles.clone(),
             line_chart_state: LineChartState::new(candles),
             volume_sync_start: Instant::now(),
@@ -160,6 +190,14 @@ fn update(state: &mut Halvora, message: Message) {
         Message::HalvingSelected(n) => {
             state.selected_halving = Some(n);
             state.yoy_selected = false;
+            // Record the ETA and subsidy for a future halving page.
+            state.selected_halving_eta =
+                Some(crate::modules::compute::halving_eta::halving_eta(
+                    state.current_tip_height,
+                    n,
+                ));
+            state.selected_halving_subsidy =
+                Some(crate::modules::compute::halving_period::halving_subsidy_btc(n));
             // Load this halving period's candles. Future halvings return an
             // empty set, so `metrics::compute` naturally produces dashes.
             // Use set_candles so the drawing tool and drawings are preserved.
@@ -167,7 +205,7 @@ fn update(state: &mut Halvora, message: Message) {
             state.line_chart_state.set_candles(candles);
             state.metrics = crate::modules::compute::metrics::compute(
                 &state.line_chart_state.candles,
-                state.live_price,
+                Halvora::metric_current_price(state),
             );
             // Close the YOY-only Calmar breakdown if it is open.
             state.show_calmar_dialog = false;
@@ -176,6 +214,8 @@ fn update(state: &mut Halvora, message: Message) {
         Message::YoYSelected => {
             state.yoy_selected = true;
             state.selected_halving = None;
+            state.selected_halving_eta = None;
+            state.selected_halving_subsidy = None;
             // Restore the cached YOY candles and recompute metrics for them.
             // Use set_candles so drawings are preserved across page switches.
             state.line_chart_state.set_candles(state.yoy_candles.clone());
@@ -190,6 +230,17 @@ fn update(state: &mut Halvora, message: Message) {
             state.current_subsidy_sat = Halvora::load_current_subsidy();
             state.next_halving_eta = crate::modules::compute::halving_eta::next_halving_eta(state.current_tip_height);
             state.blocks_to_next_halving = crate::modules::compute::halving_eta::blocks_to_next_halving(state.current_tip_height);
+            // Keep the selected halving's ETA and subsidy current. The tip
+            // advances and the live price may change.
+            if let Some(n) = state.selected_halving {
+                state.selected_halving_eta =
+                    Some(crate::modules::compute::halving_eta::halving_eta(
+                        state.current_tip_height,
+                        n,
+                    ));
+                state.selected_halving_subsidy =
+                    Some(crate::modules::compute::halving_period::halving_subsidy_btc(n));
+            }
             state.coins_issued = crate::modules::compute::coins_issued::coins_issued(state.current_tip_height);
             state.percentage_issued = crate::modules::compute::coins_issued::percentage_issued(state.current_tip_height);
             state.remaining_issuance = crate::modules::compute::coins_issued::remaining_issuance(state.current_tip_height);
@@ -206,7 +257,7 @@ fn update(state: &mut Halvora, message: Message) {
                     state.line_chart_state.set_candles(state.yoy_candles.clone());
                     state.metrics = crate::modules::compute::metrics::compute(
                         &state.line_chart_state.candles,
-                        state.live_price,
+                        Halvora::metric_current_price(state),
                     );
                 }
             }
@@ -246,8 +297,13 @@ fn update(state: &mut Halvora, message: Message) {
             }
             state.metrics = crate::modules::compute::metrics::compute(
                 &state.line_chart_state.candles,
-                Some(price),
+                Halvora::metric_current_price(state),
             );
+            // Refresh the selected halving's subsidy value.
+            if let Some(n) = state.selected_halving {
+                state.selected_halving_subsidy =
+                    Some(crate::modules::compute::halving_period::halving_subsidy_btc(n));
+            }
         }
         Message::CalmarClicked => {
             state.show_calmar_dialog = true;
@@ -290,6 +346,8 @@ fn view(state: &Halvora) -> Element<'_, Message> {
         dashboard::view(
             state.selected_halving,
             state.yoy_selected,
+            state.selected_halving_eta.as_deref(),
+            state.selected_halving_subsidy.as_deref(),
             &state.line_chart_state,
             &state.metrics,
         ),

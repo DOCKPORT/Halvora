@@ -22,6 +22,8 @@ fn ordinal_suffix(n: u32) -> &'static str {
 pub fn view<'a>(
     selected_halving: Option<u32>,
     yoy_selected: bool,
+    halving_eta: Option<&str>,
+    halving_subsidy: Option<&str>,
     chart_state: &'a LineChartState,
     metrics: &'a Metrics,
 ) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
@@ -118,29 +120,64 @@ pub fn view<'a>(
     .padding(iced::Padding::new(0.0).left(16.0).right(16.0))
     .style(placeholder_style);
 
-    let price: Element<'a, crate::modules::ui::mainwindow::application::Message> = if page_active {
-        let chart = container(LineChart::new(chart_state))
+    // A future halving page has no data, so show its ETA instead of a chart.
+    let price: Element<'a, crate::modules::ui::mainwindow::application::Message> =
+        if page_active && !chart_state.candles.is_empty() {
+            let chart = container(LineChart::new(chart_state))
+                .width(Length::Fill)
+                .height(Length::FillPortion(7))
+                .style(placeholder_style);
+
+            let tools = container(
+                drawing_tools::view(chart_state.drawing_mode.get())
+            )
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(iced::Alignment::End)
+            .align_y(iced::Alignment::Start)
+            .padding(iced::Padding::new(8.0));
+
+            iced::widget::stack(vec![chart.into(), tools.into()]).into()
+        } else if page_active {
+            // Future halving: show the ETA and subsidy centered in the area.
+            let ordinal = selected_halving.map(|n| format!("{}{}", n, ordinal_suffix(n)));
+            let heading = ordinal.as_deref().unwrap_or("");
+            let eta_text = halving_eta.unwrap_or("\u{2014}");
+            let subsidy_text = halving_subsidy.unwrap_or("\u{2014}");
+            container(
+                column![
+                    text(format!(
+                        "{} HALVING",
+                        heading,
+                    ))
+                    .size(16)
+                    .font(iced::Font::with_name("Geist Mono"))
+                    .color(theme::HALVING_BUTTON_TEXT),
+                    text(format!("ETA \u{2014} {}", eta_text))
+                        .size(14)
+                        .font(iced::Font::with_name("Geist Mono"))
+                        .color(theme::HALVING_BUTTON_TEXT),
+                    text(format!("SUBSIDY \u{2014} {}", subsidy_text))
+                        .size(14)
+                        .font(iced::Font::with_name("Geist Mono"))
+                        .color(theme::HALVING_BUTTON_TEXT),
+                ]
+                .spacing(8)
+                .align_x(iced::Alignment::Center),
+            )
             .width(Length::Fill)
             .height(Length::FillPortion(7))
-            .style(placeholder_style);
-
-        let tools = container(
-            drawing_tools::view(chart_state.drawing_mode.get())
-        )
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .align_x(iced::Alignment::End)
-        .align_y(iced::Alignment::Start)
-        .padding(iced::Padding::new(8.0));
-
-        iced::widget::stack(vec![chart.into(), tools.into()]).into()
-    } else {
-        container(iced::widget::column![])
-            .width(Length::Fill)
-            .height(Length::FillPortion(7))
+            .align_x(iced::Alignment::Center)
+            .align_y(iced::Alignment::Center)
             .style(placeholder_style)
             .into()
-    };
+        } else {
+            container(iced::widget::column![])
+                .width(Length::Fill)
+                .height(Length::FillPortion(7))
+                .style(placeholder_style)
+                .into()
+        };
 
     let volume: Element<'a, crate::modules::ui::mainwindow::application::Message> = if page_active {
         container(VolumeChart::new(chart_state))

@@ -118,6 +118,32 @@ pub fn halving_period_range(halving_number: u32) -> Option<(i64, i64)> {
     range_from_conn(&conn, halving_number, now_ts())
 }
 
+/// Public: the block subsidy in satoshis for a specific halving.
+///
+/// Returns `None` when the database or the row is unavailable. Each halving
+/// row is seeded with its subsidy during the mempool sync.
+pub fn halving_subsidy_sat(halving_number: u32) -> Option<i64> {
+    let conn = Connection::open(blocks_db_path()).ok()?;
+    conn.query_row(
+        "SELECT subsidy FROM halve_blocks WHERE halving_number = ?1",
+        [i64::from(halving_number)],
+        |row| row.get(0),
+    )
+    .ok()
+    .flatten()
+}
+
+/// Public: the block subsidy for a specific halving, formatted in BTC.
+///
+/// Returns an em-dash when the database or the row is unavailable or the
+/// subsidy is zero.
+pub fn halving_subsidy_btc(halving_number: u32) -> String {
+    match halving_subsidy_sat(halving_number) {
+        Some(sat) if sat > 0 => format!("{:.8}", sat as f64 / 100_000_000.0),
+        _ => "\u{2014}".to_string(),
+    }
+}
+
 /// Public: daily candles for a halving period, ascending by date.
 ///
 /// Returns an empty set when the halving is in the future or a database is

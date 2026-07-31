@@ -29,6 +29,15 @@ fn with_thousands_commas(n: u64) -> String {
     result
 }
 
+/// Format a duration in minutes as "~Yy Mm Dd".
+fn format_eta(minutes: u64) -> String {
+    let total_days = minutes / (60 * 24);
+    let years = total_days / 365;
+    let months = (total_days % 365) / 30;
+    let days = (total_days % 365) % 30;
+    format!("~{}y {}m {}d", years, months, days)
+}
+
 /// Compute the number of blocks remaining until the next halving.
 ///
 /// Returns a string like `"97,780"` or `"0"` if all 32 halvings are past.
@@ -46,14 +55,15 @@ pub fn next_halving_eta(current_tip_height: u32) -> String {
     let Some(blocks_remaining) = blocks_remaining_until_next_halving(current_tip_height) else {
         return "Halvings Completed".to_string();
     };
-    let minutes_remaining = blocks_remaining * MINUTES_PER_BLOCK;
+    format_eta(blocks_remaining * MINUTES_PER_BLOCK)
+}
 
-    let total_minutes = minutes_remaining;
-    let total_days = total_minutes / (60 * 24);
-
-    let years = total_days / 365;
-    let months = (total_days % 365) / 30;
-    let days = (total_days % 365) % 30;
-
-    format!("~{}y {}m {}d", years, months, days)
+/// Compute an ETA string for a specific halving number based on the current
+/// tip height.
+///
+/// Returns `"~0y 0m 0d"` when that halving has already been reached.
+pub fn halving_eta(current_tip_height: u32, halving_number: u32) -> String {
+    let height = halving_number.saturating_mul(HALVING_INTERVAL);
+    let blocks_remaining = height.saturating_sub(current_tip_height);
+    format_eta(blocks_remaining as u64 * MINUTES_PER_BLOCK)
 }

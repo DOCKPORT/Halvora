@@ -274,8 +274,14 @@ fn draw_one_range_box(
     });
     frame.stroke(&rect_path, Stroke::default().with_color(border_color).with_width(1.0));
 
-    // % change label
-    let pct = (r.to_price - r.from_price) / r.from_price * 100.0;
+    // % change label. Use the absolute value of the starting price as the
+    // base so a negative base cannot flip the sign, and guard against zero.
+    let delta = r.to_price - r.from_price;
+    let pct = if r.from_price.abs() > f64::EPSILON {
+        delta / r.from_price.abs() * 100.0
+    } else {
+        0.0
+    };
     let label = if pct >= 0.0 {
         format!("+{:.2}%", pct)
     } else {
