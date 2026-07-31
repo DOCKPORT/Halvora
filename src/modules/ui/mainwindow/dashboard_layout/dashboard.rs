@@ -24,6 +24,7 @@ pub fn view<'a>(
     yoy_selected: bool,
     halving_eta: Option<&str>,
     halving_subsidy: Option<&str>,
+    subsidy_label: &'a str,
     chart_state: &'a LineChartState,
     metrics: &'a Metrics,
 ) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
@@ -105,9 +106,10 @@ pub fn view<'a>(
     let metrics = container(
         row![
             metrics_label,
-            iced::widget::space().width(16),
+            iced::widget::space().width(0),
             metric_labels::view(
                 metrics,
+                subsidy_label,
                 crate::modules::ui::mainwindow::application::Message::CalmarClicked,
             ),
         ]

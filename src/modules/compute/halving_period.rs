@@ -133,14 +133,40 @@ pub fn halving_subsidy_sat(halving_number: u32) -> Option<i64> {
     .flatten()
 }
 
+/// Format a subsidy in satoshis as a BTC string with trailing zeros trimmed,
+/// for example "3.125 BTC" or "25 BTC". A minimum-precision value like one
+/// satoshi stays "0.00000001 BTC". Returns an em-dash when the subsidy is
+/// non-positive.
+fn fmt_subsidy_btc(sat: i64) -> String {
+    if sat <= 0 {
+        return "\u{2014}".to_string();
+    }
+    let mut s = format!("{:.8}", sat as f64 / 100_000_000.0);
+    while s.ends_with('0') {
+        s.pop();
+    }
+    if s.ends_with('.') {
+        s.pop();
+    }
+    format!("{} BTC", s)
+}
+
+/// Public: format a subsidy in satoshis as a BTC string for the live period.
+///
+/// Returns an em-dash when the subsidy is non-positive. For example, the
+/// current tip subsidy when on the YOY page.
+pub fn subsidy_btc_from_sat(sat: i64) -> String {
+    fmt_subsidy_btc(sat)
+}
+
 /// Public: the block subsidy for a specific halving, formatted in BTC.
 ///
 /// Returns an em-dash when the database or the row is unavailable or the
 /// subsidy is zero.
 pub fn halving_subsidy_btc(halving_number: u32) -> String {
     match halving_subsidy_sat(halving_number) {
-        Some(sat) if sat > 0 => format!("{:.8}", sat as f64 / 100_000_000.0),
-        _ => "\u{2014}".to_string(),
+        Some(sat) => fmt_subsidy_btc(sat),
+        None => "\u{2014}".to_string(),
     }
 }
 
@@ -281,6 +307,24 @@ mod tests {
         // H-5 has a row but a NULL timestamp (not mined yet).
         let result = query_period(&blocks, &candles, 5, 99_999_999_999);
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn subsidy_btc_has_unit() {
+        // 2_500_000_000 sats = 25 BTC (trailing zeros trimmed).
+        let s = fmt_subsidy_btc(2_500_000_000);
+        assert!(s.ends_with(" BTC"));
+        assert_eq!(s, "25 BTC");
+
+        // Fractional value keeps its significant digits, zeros trimmed.
+        assert_eq!(fmt_subsidy_btc(312_500_000), "3.125 BTC");
+
+        // Minimum precision: one satoshi stays as-is.
+        assert_eq!(fmt_subsidy_btc(1), "0.00000001 BTC");
+
+        // Non-positive subsidies fall back to an em-dash.
+        assert_eq!(fmt_subsidy_btc(0), "\u{2014}");
+        assert_eq!(fmt_subsidy_btc(-5), "\u{2014}");
     }
 
     #[test]

@@ -62,6 +62,8 @@ struct Halvora {
     /// Block subsidy of the selected halving in BTC, shown on future halving
     /// pages. `None` when YOY is active or no halving is selected.
     selected_halving_subsidy: Option<String>,
+    /// Subsidy to show in the metric bar for the active period, in BTC.
+    subsidy_label: String,
     /// Cached Year-Over-Year candles used when the YOY page is active.
     /// `line_chart_state.candles` holds the currently displayed page's data.
     yoy_candles: Vec<Candle>,
@@ -124,6 +126,9 @@ impl Halvora {
             metrics,
             selected_halving_eta: None,
             selected_halving_subsidy: None,
+            subsidy_label: crate::modules::compute::halving_period::subsidy_btc_from_sat(
+                current_subsidy_sat,
+            ),
             yoy_candles: candles.clone(),
             line_chart_state: LineChartState::new(candles),
             volume_sync_start: Instant::now(),
@@ -198,6 +203,9 @@ fn update(state: &mut Halvora, message: Message) {
                 ));
             state.selected_halving_subsidy =
                 Some(crate::modules::compute::halving_period::halving_subsidy_btc(n));
+            // The metric bar shows this halving's subsidy.
+            state.subsidy_label =
+                crate::modules::compute::halving_period::halving_subsidy_btc(n);
             // Load this halving period's candles. Future halvings return an
             // empty set, so `metrics::compute` naturally produces dashes.
             // Use set_candles so the drawing tool and drawings are preserved.
@@ -216,6 +224,11 @@ fn update(state: &mut Halvora, message: Message) {
             state.selected_halving = None;
             state.selected_halving_eta = None;
             state.selected_halving_subsidy = None;
+            // Metric bar shows the current tip subsidy on YOY.
+            state.subsidy_label =
+                crate::modules::compute::halving_period::subsidy_btc_from_sat(
+                    state.current_subsidy_sat,
+                );
             // Restore the cached YOY candles and recompute metrics for them.
             // Use set_candles so drawings are preserved across page switches.
             state.line_chart_state.set_candles(state.yoy_candles.clone());
@@ -228,6 +241,16 @@ fn update(state: &mut Halvora, message: Message) {
             crate::modules::api::mempool::rest::halve_blocks::fetch_and_store();
             state.current_tip_height = Halvora::load_tip_height();
             state.current_subsidy_sat = Halvora::load_current_subsidy();
+            // Keep the metric bar subsidy current for the active page.
+            if let Some(n) = state.selected_halving {
+                state.subsidy_label =
+                    crate::modules::compute::halving_period::halving_subsidy_btc(n);
+            } else {
+                state.subsidy_label =
+                    crate::modules::compute::halving_period::subsidy_btc_from_sat(
+                        state.current_subsidy_sat,
+                    );
+            }
             state.next_halving_eta = crate::modules::compute::halving_eta::next_halving_eta(state.current_tip_height);
             state.blocks_to_next_halving = crate::modules::compute::halving_eta::blocks_to_next_halving(state.current_tip_height);
             // Keep the selected halving's ETA and subsidy current. The tip
@@ -348,6 +371,7 @@ fn view(state: &Halvora) -> Element<'_, Message> {
             state.yoy_selected,
             state.selected_halving_eta.as_deref(),
             state.selected_halving_subsidy.as_deref(),
+            &state.subsidy_label,
             &state.line_chart_state,
             &state.metrics,
         ),

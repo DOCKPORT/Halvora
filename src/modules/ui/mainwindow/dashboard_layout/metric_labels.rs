@@ -59,6 +59,7 @@ fn p_l_color(val: &str) -> Color {
 
 pub fn view<'a>(
     metrics: &'a Metrics,
+    subsidy: &'a str,
     calmar_click: crate::modules::ui::mainwindow::application::Message,
 ) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
     let calmar_card = metric_card("Calmar", &metrics.calmar, theme::HALVING_BUTTON_TEXT);
@@ -79,6 +80,7 @@ pub fn view<'a>(
         metric_card("Low", &metrics.low, theme::HALVING_BUTTON_TEXT),
         metric_card("Max Draw-Down", &metrics.draw_down, theme::HALVING_BUTTON_TEXT),
         metric_card("Max Run-Up", &metrics.run_up, theme::HALVING_BUTTON_TEXT),
+        metric_card("Subsidy", subsidy, theme::HALVING_BUTTON_TEXT),
         calmar_button.into(),
     ])
     .spacing(8)
