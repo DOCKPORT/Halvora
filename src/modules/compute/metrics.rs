@@ -1,5 +1,13 @@
 use crate::modules::compute::year_over_year::Candle;
 
+/// P/L sign of a period, used to color the sidebar buttons.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PLSign {
+    Positive,
+    Negative,
+    NoChange,
+}
+
 /// Intermediate values used to compute the Calmar ratio, shown in the detail dialog.
 #[derive(Debug, Clone)]
 pub struct CalmarBreakdown {
@@ -21,6 +29,27 @@ pub struct Metrics {
     pub calmar_breakdown: CalmarBreakdown,
 }
 
+/// Sign of the P/L for a period: first candle close vs the current price.
+///
+/// Mirrors the math used by the top-bar P/L card so the sidebar buttons stay
+/// in sync. Returns `NoChange` when the input is empty, the first close is
+/// zero, or the change is below the display threshold.
+pub fn pl_sign(candles: &[Candle], current_price: Option<f64>) -> PLSign {
+    match (candles.first(), current_price) {
+        (Some(first), Some(current)) if first.close != 0.0 => {
+            let change = (current - first.close) / first.close * 100.0;
+            if change.abs() < 0.001 {
+                PLSign::NoChange
+            } else if change > 0.0 {
+                PLSign::Positive
+            } else {
+                PLSign::Negative
+            }
+        }
+        _ => PLSign::NoChange,
+    }
+}
+
 /// Compute all top-bar metrics from a slice of daily candles and an
 /// optional live price.
 ///
@@ -31,18 +60,20 @@ pub fn compute(candles: &[Candle], live_price: Option<f64>) -> Metrics {
 
     // P/L: first candle close vs live price.
     //  ▲ for positive, ▼ for negative, — for zero.
-    let p_l = match (candles.first(), live_price) {
-        (Some(first), Some(current)) if first.close != 0.0 => {
-            let change = (current - first.close) / first.close * 100.0;
-            if change.abs() < 0.001 {
-                dash.clone()
-            } else if change > 0.0 {
-                format!("\u{25B2} {:.2}%", change)
-            } else {
-                format!("\u{25BC} {:.2}%", -change)
-            }
+    let p_l = match pl_sign(candles, live_price) {
+        PLSign::Positive => {
+            let change = (live_price.unwrap() - candles.first().unwrap().close)
+                / candles.first().unwrap().close
+                * 100.0;
+            format!("\u{25B2} {:.2}%", change)
         }
-        _ => dash.clone(),
+        PLSign::Negative => {
+            let change = (live_price.unwrap() - candles.first().unwrap().close)
+                / candles.first().unwrap().close
+                * 100.0;
+            format!("\u{25BC} {:.2}%", -change)
+        }
+        PLSign::NoChange => dash.clone(),
     };
 
     // High / Low: max of high, min of low across the period.

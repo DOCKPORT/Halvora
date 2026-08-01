@@ -6,8 +6,9 @@ edition = "2024"
 [dependencies]
 dirs = "6.0.0"
 futures-util = "0.3.33"
-iced = { version = "0.14.0", features = ["image", "tokio", "canvas"] }
+iced = { version = "0.14.0", features = ["image", "svg", "tokio", "canvas"] }
 reqwest = { version = "0.13.4", default-features = false, features = ["blocking", "rustls"] }
+resvg = "0.45.1"
 rusqlite = { version = "0.40.1", features = ["bundled"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.150"

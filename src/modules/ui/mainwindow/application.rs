@@ -4,10 +4,11 @@ use iced::window::Position;
 use rusqlite::Connection;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
-use crate::modules::compute::metrics::Metrics;
+use crate::modules::compute::metrics::{Metrics, PLSign};
 use crate::modules::compute::year_over_year::Candle;
 use crate::modules::ui::line_chart::LineChartState;
 use crate::modules::ui::scaling::Scaling;
+use crate::modules::ui::mainwindow::app_icon;
 use crate::modules::ui::mainwindow::dashboard_layout::dashboard;
 use crate::modules::ui::mainwindow::sidebar::halving_sidebar;
 use crate::modules::ui::mainwindow::sidebar::blockchain_sidebar;
@@ -30,6 +31,7 @@ pub fn run() -> iced::Result {
         position: Position::Centered,
         #[cfg(not(target_os = "linux"))]
         maximized: true,
+        icon: app_icon::load_app_icon(),
         ..Default::default()
     };
 
@@ -56,6 +58,14 @@ struct Halvora {
     sats_per_usd: String,
     all_time_high: String,
     metrics: Metrics,
+    /// P/L sign for the Year-Over-Year period, used to color the sidebar button.
+    yoy_pl_sign: PLSign,
+    /// P/L sign for each halving period, indexed by halving number (`signs[n]`
+    /// holds halving `n`, element 0 unused). Used to color the sidebar buttons.
+    halving_pl_signs: Vec<PLSign>,
+    /// The currently live halving number (the most recent one with data).
+    /// Future halvings stay grey until this advances.
+    current_halving: u32,
     /// ETA to the selected halving, shown on future halving pages that have
     /// no data yet. `None` when YOY is active or no halving is selected.
     selected_halving_eta: Option<String>,
@@ -95,6 +105,76 @@ impl Halvora {
         }
     }
 
+    /// Current price for an arbitrary candle set, mirroring `metric_current_price`.
+    ///
+    /// A completed period ends in the past, so its last candle close is the
+    /// true end. A live period ends today, so the websocket price is the
+    /// running close.
+    fn period_current_price(candles: &[Candle], live_price: Option<f64>) -> Option<f64> {
+        let last_ts = candles.last().map(|c| c.timestamp)?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        let today_midnight = now - (now % 86_400);
+        if last_ts == today_midnight {
+            live_price
+        } else {
+            candles.last().map(|c| c.close)
+        }
+    }
+
+    /// Highest halving number with candle data, i.e. the currently live halving.
+    ///
+    /// Returns `0` when no halving has data yet.
+    fn live_halving_number() -> u32 {
+        let mut live = 0;
+        for n in 1..=32 {
+            if !crate::modules::compute::halving_period::halving_period_candles(n).is_empty() {
+                live = n;
+            }
+        }
+        live
+    }
+
+    /// Recompute the YOY and all 32 halving signs, and re-detect the live
+    /// halving. Called on startup, Tick, and NewDay (infrequent paths).
+    fn refresh_halving_signs(state: &mut Self) {
+        state.yoy_pl_sign = crate::modules::compute::metrics::pl_sign(
+            &state.yoy_candles,
+            state.live_price,
+        );
+        state.halving_pl_signs = (0..=32)
+            .map(|n| {
+                if n == 0 {
+                    PLSign::NoChange
+                } else {
+                    let candles =
+                        crate::modules::compute::halving_period::halving_period_candles(n);
+                    let price = Self::period_current_price(&candles, state.live_price);
+                    crate::modules::compute::metrics::pl_sign(&candles, price)
+                }
+            })
+            .collect();
+        state.current_halving = Self::live_halving_number();
+    }
+
+    /// Recompute only the YOY and live halving signs. Called on every
+    /// websocket price tick to avoid 33 DB queries per update; completed
+    /// halving signs are already stable.
+    fn refresh_live_signs(state: &mut Self) {
+        state.yoy_pl_sign = crate::modules::compute::metrics::pl_sign(
+            &state.yoy_candles,
+            state.live_price,
+        );
+        if state.current_halving >= 1 && state.current_halving <= 32 {
+            let n = state.current_halving as usize;
+            let candles = crate::modules::compute::halving_period::halving_period_candles(n as u32);
+            let price = Self::period_current_price(&candles, state.live_price);
+            state.halving_pl_signs[n] = crate::modules::compute::metrics::pl_sign(&candles, price);
+        }
+    }
+
     fn new() -> Self {
         let current_tip_height = Self::load_tip_height();
         let current_subsidy_sat = Self::load_current_subsidy();
@@ -109,7 +189,7 @@ impl Halvora {
 
         let metrics = crate::modules::compute::metrics::compute(&candles, None);
 
-        Self {
+        let mut state = Self {
             selected_halving: None,
             yoy_selected: true,
             current_tip_height,
@@ -124,6 +204,9 @@ impl Halvora {
             sats_per_usd: crate::modules::compute::price_stats::sats_per_usd(None),
             all_time_high,
             metrics,
+            yoy_pl_sign: PLSign::NoChange,
+            halving_pl_signs: vec![PLSign::NoChange; 33],
+            current_halving: 0,
             selected_halving_eta: None,
             selected_halving_subsidy: None,
             subsidy_label: crate::modules::compute::halving_period::subsidy_btc_from_sat(
@@ -133,7 +216,9 @@ impl Halvora {
             line_chart_state: LineChartState::new(candles),
             volume_sync_start: Instant::now(),
             show_calmar_dialog: false,
-        }
+        };
+        Self::refresh_halving_signs(&mut state);
+        state
     }
 
     /// Query the most recent tip height from the database.
@@ -267,6 +352,9 @@ fn update(state: &mut Halvora, message: Message) {
             state.coins_issued = crate::modules::compute::coins_issued::coins_issued(state.current_tip_height);
             state.percentage_issued = crate::modules::compute::coins_issued::percentage_issued(state.current_tip_height);
             state.remaining_issuance = crate::modules::compute::coins_issued::remaining_issuance(state.current_tip_height);
+            // The tip may have advanced into a new live halving, so refresh
+            // all signs and re-detect the live halving.
+            Halvora::refresh_halving_signs(state);
 
             // Hourly volume sync for today's partial candle (with 1h cooldown at startup).
             if state.volume_sync_start.elapsed() >= Duration::from_secs(3600) {
@@ -322,6 +410,8 @@ fn update(state: &mut Halvora, message: Message) {
                 &state.line_chart_state.candles,
                 Halvora::metric_current_price(state),
             );
+            // Update the YOY and live halving button colors with the new price.
+            Halvora::refresh_live_signs(state);
             // Refresh the selected halving's subsidy value.
             if let Some(n) = state.selected_halving {
                 state.selected_halving_subsidy =
@@ -350,6 +440,8 @@ fn update(state: &mut Halvora, message: Message) {
             let candles = crate::modules::compute::year_over_year::trailing_365_candles();
             state.yoy_candles = candles;
             state.volume_sync_start = Instant::now();
+            // The new day may change which period is live, so refresh all signs.
+            Halvora::refresh_halving_signs(state);
             // Only refresh the active page when YOY is selected; halving
             // pages keep their empty candle set and dash metrics.
             if state.yoy_selected {
@@ -365,7 +457,12 @@ fn update(state: &mut Halvora, message: Message) {
 
 fn view(state: &Halvora) -> Element<'_, Message> {
     let main_content: Element<'_, Message> = row![
-        halving_sidebar::view(state.selected_halving, state.yoy_selected),
+        halving_sidebar::view(
+            state.selected_halving,
+            state.yoy_selected,
+            state.yoy_pl_sign,
+            &state.halving_pl_signs,
+        ),
         dashboard::view(
             state.selected_halving,
             state.yoy_selected,

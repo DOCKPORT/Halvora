@@ -1,17 +1,36 @@
-use iced::widget::{button, container, image, scrollable, Column, Row};
-use iced::{border, ContentFit, Element, Length};
+use iced::widget::{button, container, scrollable, svg, Column, Row};
+use iced::{border, Color, ContentFit, Element, Length};
+use crate::modules::compute::metrics::PLSign;
 use crate::modules::ui::theme;
 
-pub fn view<'a>(selected_halving: Option<u32>, yoy_selected: bool) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
+/// Background color pairs for a button based on its P/L sign.
+///
+/// Positive and negative use a light translucent tint. No-change (including
+/// future halvings without data yet) keeps the original grey button style.
+fn fill_colors(sign: PLSign) -> (Color, Color) {
+    // (normal, hover)
+    match sign {
+        PLSign::Positive => (theme::BUTTON_FILL_GREEN, theme::BUTTON_FILL_GREEN_HOVER),
+        PLSign::Negative => (theme::BUTTON_FILL_RED, theme::BUTTON_FILL_RED_HOVER),
+        PLSign::NoChange => (theme::HALVING_BUTTON_BACKGROUND, theme::HALVING_BUTTON_HOVER),
+    }
+}
+
+pub fn view<'a>(
+    selected_halving: Option<u32>,
+    yoy_selected: bool,
+    yoy_pl_sign: PLSign,
+    halving_pl_signs: &[PLSign],
+) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
     use crate::modules::ui::mainwindow::application::Message;
 
     // Build 32 buttons in a 2-column grid: 16 rows of [H-n, H-(n+1)]
     let mut rows: Vec<Element<'a, Message>> = Vec::with_capacity(16);
     for i in (1..=32).step_by(2) {
         let row = Row::with_children(vec![
-            halving_button(i, selected_halving),
+            halving_button(i, selected_halving, halving_pl_signs.get(i as usize).copied().unwrap_or(PLSign::NoChange)),
             if i + 1 <= 32 {
-                halving_button(i + 1, selected_halving)
+                halving_button(i + 1, selected_halving, halving_pl_signs.get((i + 1) as usize).copied().unwrap_or(PLSign::NoChange))
             } else {
                 container(iced::widget::column![])
                     .width(Length::Fixed(100.0))
@@ -31,7 +50,7 @@ pub fn view<'a>(selected_halving: Option<u32>, yoy_selected: bool) -> Element<'a
 
         // Logo at top
         children.push(
-            image("Halvora_Logo/Halvora.png")
+            svg::Svg::new("Halvora_Logo/Halvora.svg")
                 .content_fit(ContentFit::Contain)
                 .width(Length::Fill)
                 .height(Length::Fixed(80.0))
@@ -43,7 +62,7 @@ pub fn view<'a>(selected_halving: Option<u32>, yoy_selected: bool) -> Element<'a
 
         // YoY button — same padding & width as grid rows for centering
         children.push(
-            Row::with_children(vec![yoy_button(yoy_selected)])
+            Row::with_children(vec![yoy_button(yoy_selected, yoy_pl_sign)])
                 .padding(iced::Padding::new(0.0).left(21.0).right(21.0))
                 .width(Length::Fill)
                 .into(),
@@ -76,6 +95,7 @@ pub fn view<'a>(selected_halving: Option<u32>, yoy_selected: bool) -> Element<'a
 
 fn yoy_button<'a>(
     is_selected: bool,
+    sign: PLSign,
 ) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
     use crate::modules::ui::mainwindow::application::Message;
 
@@ -96,9 +116,11 @@ fn yoy_button<'a>(
     .padding(0)
     .on_press(Message::YoYSelected)
     .style(move |_theme, status| {
+        let (fill, fill_hover) = fill_colors(sign);
+
         let background = match status {
-            button::Status::Hovered => theme::HALVING_BUTTON_HOVER,
-            _ => theme::HALVING_BUTTON_BACKGROUND,
+            button::Status::Hovered => fill_hover,
+            _ => fill,
         };
 
         let text_color = theme::HALVING_BUTTON_TEXT;
@@ -123,6 +145,7 @@ fn yoy_button<'a>(
 fn halving_button<'a>(
     num: u32,
     selected_halving: Option<u32>,
+    sign: PLSign,
 ) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
     use crate::modules::ui::mainwindow::application::Message;
     let is_selected = selected_halving == Some(num);
@@ -144,9 +167,11 @@ fn halving_button<'a>(
     .padding(0)
     .on_press(Message::HalvingSelected(num))
     .style(move |_theme, status| {
+        let (fill, fill_hover) = fill_colors(sign);
+
         let background = match status {
-            button::Status::Hovered => theme::HALVING_BUTTON_HOVER,
-            _ => theme::HALVING_BUTTON_BACKGROUND,
+            button::Status::Hovered => fill_hover,
+            _ => fill,
         };
 
         let text_color = theme::HALVING_BUTTON_TEXT;
