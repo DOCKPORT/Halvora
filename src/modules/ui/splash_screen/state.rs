@@ -15,7 +15,7 @@ pub struct SplashState {
 impl SplashState {
     /// The splash duration in seconds; the splash stays fully visible for
     /// this long before the fade-out begins.
-    pub const DURATION_SECS: f32 = 7.0;
+    pub const DURATION_SECS: f32 = 5.0;
     /// Fade-out duration in seconds.
     pub const FADE_OUT_SECS: f32 = 0.8;
 

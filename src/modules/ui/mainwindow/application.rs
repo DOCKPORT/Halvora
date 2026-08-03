@@ -8,6 +8,7 @@ use crate::modules::compute::metrics::{Metrics, PLSign};
 use crate::modules::compute::year_over_year::Candle;
 use crate::modules::ui::line_chart::LineChartState;
 use crate::modules::ui::scaling::Scaling;
+use crate::modules::ui::mainwindow::about_dialog;
 use crate::modules::ui::mainwindow::app_icon;
 use crate::modules::ui::mainwindow::dashboard_layout::dashboard;
 use crate::modules::ui::mainwindow::sidebar::halving_sidebar;
@@ -93,6 +94,7 @@ struct Halvora {
     line_chart_state: LineChartState,
     volume_sync_start: Instant,
     show_calmar_dialog: bool,
+    show_about_dialog: bool,
 }
 
 impl Halvora {
@@ -239,6 +241,7 @@ impl Halvora {
             line_chart_state: LineChartState::new(candles),
             volume_sync_start: Instant::now(),
             show_calmar_dialog: false,
+            show_about_dialog: false,
         };
         Self::refresh_halving_signs(&mut state);
         state
@@ -286,6 +289,9 @@ pub enum Message {
     NewDay(i64),
     CalmarClicked,
     CloseCalmarDialog,
+    AboutClicked,
+    OpenGithub,
+    CloseAboutDialog,
     SelectAVWAP,
     SelectRange,
     /// Advances splash progress by the elapsed time since start.
@@ -496,6 +502,17 @@ fn update(state: &mut Halvora, message: Message) {
             state.show_calmar_dialog = true;
             state.line_chart_state.dialog_open.set(true);
         }
+        Message::AboutClicked => {
+            state.show_about_dialog = true;
+            state.line_chart_state.dialog_open.set(true);
+        }
+        Message::OpenGithub => {
+            open_url("https://github.com/DOCKPORT/Halvora");
+        }
+        Message::CloseAboutDialog => {
+            state.show_about_dialog = false;
+            state.line_chart_state.dialog_open.set(false);
+        }
         Message::CloseCalmarDialog => {
             state.show_calmar_dialog = false;
             state.line_chart_state.dialog_open.set(false);
@@ -566,6 +583,7 @@ fn view(state: &Halvora) -> Element<'_, Message> {
     .height(Length::Fill)
     .into();
 
+    let mut display = main_content;
     if state.show_calmar_dialog {
         // Semi-transparent overlay
         let overlay = container(
@@ -656,16 +674,19 @@ fn view(state: &Halvora) -> Element<'_, Message> {
         .align_x(iced::Alignment::Center)
         .align_y(iced::Alignment::Center);
 
-        let display = iced::widget::stack(vec![main_content, mouse_area(overlay).into()]).into();
+        display = iced::widget::stack(vec![display, mouse_area(overlay).into()]).into();
         if let Some(opacity) = fade_in_opacity {
-            fade_overlay(display, opacity)
-        } else {
-            display
+            display = fade_overlay(display, opacity);
         }
-    } else if let Some(opacity) = fade_in_opacity {
-        fade_overlay(main_content, opacity)
+    }
+    if state.show_about_dialog {
+        let overlay = about_dialog::view();
+        display = iced::widget::stack(vec![display, mouse_area(overlay).into()]).into();
+    }
+    if let Some(opacity) = fade_in_opacity {
+        fade_overlay(display, opacity)
     } else {
-        main_content
+        display
     }
 }
 
@@ -686,4 +707,26 @@ fn fade_overlay<'a>(
             ..Default::default()
         });
     iced::widget::stack(vec![content, overlay.into()]).into()
+}
+
+/// Open `url` in the system's default browser.
+///
+/// Uses `xdg-open` on Linux, `open` on macOS, and `cmd /c start` on Windows.
+/// The command runs on a background thread so it does not block the UI thread.
+fn open_url(url: &str) {
+    let url = url.to_string();
+    std::thread::spawn(move || {
+        #[cfg(target_os = "windows")]
+        let result = std::process::Command::new("cmd")
+            .args(["/C", "start", ""])
+            .arg(&url)
+            .spawn();
+        #[cfg(target_os = "macos")]
+        let result = std::process::Command::new("open").arg(&url).spawn();
+        #[cfg(target_os = "linux")]
+        let result = std::process::Command::new("xdg-open").arg(&url).spawn();
+
+        #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+        let _ = result.map(|_| ());
+    });
 }

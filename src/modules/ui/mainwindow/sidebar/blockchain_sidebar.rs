@@ -47,12 +47,10 @@ pub fn view<'a>(current_tip_height: u32, current_subsidy_sat: i64, next_halving_
         result
     }
     let height_str = fmt_commas(current_tip_height);
-    let subsidy_btc = current_subsidy_sat as f64 / 100_000_000.0;
-    let subsidy_str = if current_subsidy_sat == 0 {
-        "\u{2014}".to_string()
-    } else {
-        format!("{:.8}", subsidy_btc)
-    };
+    // Reuse the same formatter as the page metric labels so trailing zeros
+    // are trimmed, e.g. "3.125 BTC" instead of "3.12500000".
+    let subsidy_str =
+        crate::modules::compute::halving_period::subsidy_btc_from_sat(current_subsidy_sat);
     let content = Column::with_children(vec![
         iced::widget::space().height(Length::Fixed(8.0)).into(),
         info_card("Block Height", height_str),

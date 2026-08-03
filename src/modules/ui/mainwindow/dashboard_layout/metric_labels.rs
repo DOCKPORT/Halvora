@@ -12,6 +12,7 @@ fn metric_card<'a>(
     label: &'a str,
     value: &'a str,
     value_color: Color,
+    background: Option<Color>,
 ) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
     let inner = iced::widget::Column::with_children(vec![
         text(label)
@@ -36,9 +37,9 @@ fn metric_card<'a>(
 
     container(inner)
         .width(Length::Fill)
-        .style(|_theme| {
+        .style(move |_theme| {
             container::Style {
-                background: Some(iced::Background::Color(theme::HALVING_BUTTON_BACKGROUND)),
+                background: background.map(iced::Background::Color),
                 border: iced::border::rounded(8),
                 ..Default::default()
             }
@@ -62,25 +63,30 @@ pub fn view<'a>(
     subsidy: &'a str,
     calmar_click: crate::modules::ui::mainwindow::application::Message,
 ) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
-    let calmar_card = metric_card("Calmar", &metrics.calmar, theme::HALVING_BUTTON_TEXT);
+    // The Calmar card is transparent so the button's own fill shows through,
+    // matching the halving sidebar buttons' hover-fill effect.
+    let calmar_card = metric_card("Calmar", &metrics.calmar, theme::HALVING_BUTTON_TEXT, None);
     let calmar_button = iced::widget::button(calmar_card)
         .on_press(calmar_click)
         .padding(0)
-        .style(|_theme, _status| iced::widget::button::Style {
-            background: None,
-            border: iced::border::rounded(0),
+        .style(|_theme, status| iced::widget::button::Style {
+            background: Some(iced::Background::Color(match status {
+                iced::widget::button::Status::Hovered => theme::HALVING_BUTTON_HOVER,
+                _ => theme::HALVING_BUTTON_BACKGROUND,
+            })),
+            border: iced::border::rounded(8),
             shadow: Default::default(),
             text_color: Default::default(),
             snap: false,
         });
 
     Row::with_children(vec![
-        metric_card("P/L", &metrics.p_l, p_l_color(&metrics.p_l)),
-        metric_card("High", &metrics.high, theme::HALVING_BUTTON_TEXT),
-        metric_card("Low", &metrics.low, theme::HALVING_BUTTON_TEXT),
-        metric_card("Max Draw-Down", &metrics.draw_down, theme::HALVING_BUTTON_TEXT),
-        metric_card("Max Run-Up", &metrics.run_up, theme::HALVING_BUTTON_TEXT),
-        metric_card("Subsidy", subsidy, theme::HALVING_BUTTON_TEXT),
+        metric_card("P/L", &metrics.p_l, p_l_color(&metrics.p_l), Some(theme::HALVING_BUTTON_BACKGROUND)),
+        metric_card("High", &metrics.high, theme::HALVING_BUTTON_TEXT, Some(theme::HALVING_BUTTON_BACKGROUND)),
+        metric_card("Low", &metrics.low, theme::HALVING_BUTTON_TEXT, Some(theme::HALVING_BUTTON_BACKGROUND)),
+        metric_card("Max Draw-Down", &metrics.draw_down, theme::HALVING_BUTTON_TEXT, Some(theme::HALVING_BUTTON_BACKGROUND)),
+        metric_card("Max Run-Up", &metrics.run_up, theme::HALVING_BUTTON_TEXT, Some(theme::HALVING_BUTTON_BACKGROUND)),
+        metric_card("Subsidy", subsidy, theme::HALVING_BUTTON_TEXT, Some(theme::HALVING_BUTTON_BACKGROUND)),
         calmar_button.into(),
     ])
     .spacing(8)

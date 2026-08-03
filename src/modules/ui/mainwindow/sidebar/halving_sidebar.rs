@@ -48,13 +48,37 @@ pub fn view<'a>(
     let content = Column::with_children({
         let mut children: Vec<Element<'a, Message>> = Vec::with_capacity(17);
 
-        // Logo at top
+        // Logo at top — clicking it opens the About dialog. A faint highlight
+        // appears on hover to signal that it is clickable.
         children.push(
-            svg::Svg::new("Halvora_Logo/Halvora.svg")
-                .content_fit(ContentFit::Contain)
-                .width(Length::Fill)
-                .height(Length::Fixed(80.0))
-                .into(),
+            button(
+                svg::Svg::new("Halvora_Logo/Halvora.svg")
+                    .content_fit(ContentFit::Contain)
+                    .width(Length::Fill)
+                    .height(Length::Fixed(80.0)),
+            )
+            .width(Length::Fill)
+            .height(Length::Fixed(80.0))
+            .padding(0)
+            .on_press(Message::AboutClicked)
+            .style(|_theme, status| button::Style {
+                background: match status {
+                    button::Status::Hovered => Some(iced::Background::Color(
+                        Color::from_rgba(1.0, 1.0, 1.0, 0.05),
+                    )),
+                    _ => None,
+                },
+                border: match status {
+                    button::Status::Hovered => iced::border::Border::default()
+                        .color(Color::from_rgba(0.85, 0.85, 0.85, 0.2))
+                        .width(1.0),
+                    _ => iced::border::Border::default(),
+                },
+                shadow: Default::default(),
+                text_color: Default::default(),
+                snap: false,
+            })
+            .into(),
         );
 
         // Spacer
