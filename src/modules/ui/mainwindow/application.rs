@@ -68,6 +68,8 @@ struct Halvora {
     percentage_issued: String,
     remaining_issuance: String,
     live_price: Option<f64>,
+    /// Active websocket price flash (green up / red down), `None` when idle.
+    ws_flash: Option<crate::modules::ui::ws_flash::WsFlash>,
     subsidy_value: String,
     sats_per_usd: String,
     all_time_high: String,
@@ -225,6 +227,7 @@ impl Halvora {
             percentage_issued,
             remaining_issuance,
             live_price: seeded_price,
+            ws_flash: None,
             subsidy_value,
             sats_per_usd,
             all_time_high,
@@ -286,6 +289,8 @@ pub enum Message {
     YoYSelected,
     Tick,
     LivePrice(f64),
+    /// Periodic tick that expires an active websocket flash after 1 second.
+    WsFlashTick,
     NewDay(i64),
     CalmarClicked,
     CloseCalmarDialog,
@@ -307,6 +312,14 @@ fn subscription(state: &Halvora) -> Subscription<Message> {
         crate::modules::api::bit_stamp::ws::live_price().map(Message::LivePrice),
         crate::modules::compute::midnight_rollover::detect().map(Message::NewDay),
     ];
+
+    // While a websocket price flash is active, tick frequently so it can expire
+    // after ~1 second and the Spot Price value returns to its normal color.
+    if state.ws_flash.is_some() {
+        subs.push(
+            iced::time::every(Duration::from_millis(100)).map(|_| Message::WsFlashTick),
+        );
+    }
 
     // While the splash or the main fade-in is active, drive progress on a
     // fixed interval (~60fps) to keep the animations smooth.
@@ -374,7 +387,28 @@ fn update(state: &mut Halvora, message: Message) {
             // Load this halving period's candles. Future halvings return an
             // empty set, so `metrics::compute` naturally produces dashes.
             // Use set_candles so the drawing tool and drawings are preserved.
-            let candles = crate::modules::compute::halving_period::halving_period_candles(n);
+            let mut candles = crate::modules::compute::halving_period::halving_period_candles(n);
+            // Use the in-memory websocket price for today's partial candle so
+            // the chart reflects the live price immediately instead of the
+            // last DB-synced close (which only updates on the next tick).
+            if let Some(price) = state.live_price {
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or(0);
+                let today_midnight = now - (now % 86_400);
+                if let Some(last) = candles.last_mut() {
+                    if last.timestamp == today_midnight {
+                        last.close = price;
+                        if price > last.high {
+                            last.high = price;
+                        }
+                        if price < last.low {
+                            last.low = price;
+                        }
+                    }
+                }
+            }
             state.line_chart_state.set_candles(candles);
             state.metrics = crate::modules::compute::metrics::compute(
                 &state.line_chart_state.candles,
@@ -453,7 +487,19 @@ fn update(state: &mut Halvora, message: Message) {
                 }
             }
         }
+        Message::WsFlashTick => {
+            // Expire the websocket flash once its 1-second window has elapsed.
+            if let Some(flash) = &state.ws_flash {
+                if !flash.is_active(std::time::Instant::now()) {
+                    state.ws_flash = None;
+                    state.line_chart_state.ws_flash.set(None);
+                }
+            }
+        }
         Message::LivePrice(price) => {
+            let flash = crate::modules::ui::ws_flash::WsFlash::from_tick(state.live_price, price);
+            state.ws_flash = flash;
+            state.line_chart_state.ws_flash.set(flash);
             state.live_price = Some(price);
             state.subsidy_value = crate::modules::compute::price_stats::subsidy_value(Some(price), state.current_subsidy_sat);
             state.sats_per_usd = crate::modules::compute::price_stats::sats_per_usd(Some(price));
@@ -561,6 +607,12 @@ fn view(state: &Halvora) -> Element<'_, Message> {
         _ => None,
     };
 
+    // The active websocket price flash, used to highlight the changed digits.
+    let spot_flash = state
+        .ws_flash
+        .as_ref()
+        .filter(|f| f.is_active(std::time::Instant::now()));
+
     let main_content: Element<'_, Message> = row![
         halving_sidebar::view(
             state.selected_halving,
@@ -577,7 +629,7 @@ fn view(state: &Halvora) -> Element<'_, Message> {
             &state.line_chart_state,
             &state.metrics,
         ),
-        blockchain_sidebar::view(state.current_tip_height, state.current_subsidy_sat, &state.next_halving_eta, &state.blocks_to_next_halving, &state.coins_issued, &state.percentage_issued, &state.remaining_issuance, state.live_price, &state.subsidy_value, &state.sats_per_usd, &state.all_time_high),
+        blockchain_sidebar::view(state.current_tip_height, state.current_subsidy_sat, &state.next_halving_eta, &state.blocks_to_next_halving, &state.coins_issued, &state.percentage_issued, &state.remaining_issuance, state.live_price, spot_flash, &state.subsidy_value, &state.sats_per_usd, &state.all_time_high),
     ]
     .width(Length::Fill)
     .height(Length::Fill)

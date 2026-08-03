@@ -4,3 +4,4 @@ pub mod scaling;
 pub mod splash_screen;
 pub mod theme;
 pub mod volume_chart;
+pub mod ws_flash;

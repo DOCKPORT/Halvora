@@ -1,5 +1,6 @@
 use std::cell::{Cell, RefCell};
 use crate::modules::compute::year_over_year::Candle;
+use crate::modules::ui::ws_flash::WsFlash;
 
 /// Which drawing tool is currently active on the chart.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,6 +47,9 @@ pub struct LineChartState {
     pub range_pending: Cell<Option<(f64, f64)>>,
     /// During range placement: current cursor position for live preview.
     pub range_preview: Cell<Option<(f64, f64)>>,
+    /// Active websocket price flash (green up / red down), mirrored from the
+    /// application so the chart tooltip can highlight the changed digits.
+    pub ws_flash: Cell<Option<WsFlash>>,
 }
 
 impl LineChartState {
@@ -61,6 +65,7 @@ impl LineChartState {
             ranges: RefCell::new(Vec::new()),
             range_pending: Cell::new(None),
             range_preview: Cell::new(None),
+            ws_flash: Cell::new(None),
         }
     }
 

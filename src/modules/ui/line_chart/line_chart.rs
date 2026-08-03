@@ -148,12 +148,18 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
         draw_axes_labels(&mut frame, &plot, x_min, x_max, y_min, y_max);
 
         // 7. Crosshair — hovered candle or today's candle as default
+        let flash = self
+            .data
+            .ws_flash
+            .get()
+            .filter(|f| f.is_active(std::time::Instant::now()));
         if let (Some(candle), Some(active_idx)) = (&state.candle, state.active_idx) {
             draw_crosshair(
                 &mut frame, &plot,
                 candle, active_idx,
                 &self.data.candles, x_min, x_max,
                 true, // show vertical line
+                flash,
             );
         } else if let Some((today_cdl, today_idx)) = today_candle(&self.data.candles) {
             draw_crosshair(
@@ -161,6 +167,7 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
                 &today_cdl, today_idx,
                 &self.data.candles, x_min, x_max,
                 false, // no vertical line — not hovered
+                flash,
             );
         }
 
@@ -184,6 +191,19 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
         // When a modal dialog is open, ignore all mouse events on the canvas.
         if self.data.dialog_open.get() {
             return None;
+        }
+        // Right-click is a global delete: remove whichever drawing is under the
+        // cursor (a range box or an anchored VWAP line) no matter which tool is
+        // currently selected.
+        if let canvas::Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)) = event {
+            use crate::modules::ui::mainwindow::dashboard_layout::drawing_tools::RangeActionResult;
+            return match drawing_tools::handle_right_click_delete(cursor, bounds, self.data) {
+                RangeActionResult::RedrawAndCapture => {
+                    Some(canvas::Action::request_redraw().and_capture())
+                }
+                RangeActionResult::Redraw => Some(canvas::Action::request_redraw()),
+                RangeActionResult::None => None,
+            };
         }
         // In Range mode, process clicks for range placement but let cursor
         // events fall through so crosshair tracking still works.
@@ -222,39 +242,6 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
                     if let Some(idx) = state.active_idx {
                         self.data.push_anchor(idx);
                         return Some(canvas::Action::request_redraw().and_capture());
-                    }
-                    None
-                }
-                mouse::Event::ButtonPressed(mouse::Button::Right) => {
-                    // Hit-test: find if cursor is within 3px of any anchored VWAP line
-                    let plot = Rectangle {
-                        x: bounds.x + 60.0,
-                        y: bounds.y + 60.0,
-                        width: bounds.width - 120.0,
-                        height: bounds.height - 120.0,
-                    };
-                    if let Some(cursor_pt) = cursor.position_over(bounds) {
-                        // Only process right-click if cursor is inside plot area
-                        if cursor_pt.x >= plot.x
-                            && cursor_pt.x <= plot.x + plot.width
-                            && cursor_pt.y >= plot.y
-                            && cursor_pt.y <= plot.y + plot.height
-                        {
-                            let (x_min, x_max) = self.data.x_bounds();
-                            let (y_min, y_max) = self.data.y_bounds();
-                            if let Some(list_idx) = drawing_tools::hit_test_anchored_vwaps(
-                                cursor_pt.x as f64,
-                                cursor_pt.y as f64,
-                                &plot,
-                                x_min, x_max,
-                                y_min, y_max,
-                                &self.data.candles,
-                                &self.data.anchors(),
-                            ) {
-                                self.data.remove_anchor_at(list_idx);
-                                return Some(canvas::Action::request_redraw().and_capture());
-                            }
-                        }
                     }
                     None
                 }
@@ -675,6 +662,7 @@ fn draw_crosshair(
     x_min: f64,
     x_max: f64,
     show_line: bool,
+    flash: Option<crate::modules::ui::ws_flash::WsFlash>,
 ) {
     // Vertical line (only shown on hover)
     if show_line {
@@ -734,9 +722,9 @@ fn draw_crosshair(
             .unwrap_or_default()
     };
 
-    let label = if let Some(dt) = DateTime::from_timestamp(candle.timestamp, 0) {
+    let head = if let Some(dt) = DateTime::from_timestamp(candle.timestamp, 0) {
         format!(
-            "{} {} '{} \u{2014} H: {}  L: {}  C: {}{}",
+            "{} {} '{} \u{2014} H: {}  L: {}  C: ",
             dt.day(),
             match dt.month() {
                 1 => "Jan", 2 => "Feb", 3 => "Mar", 4 => "Apr",
@@ -747,27 +735,59 @@ fn draw_crosshair(
             dt.year() % 100,
             fmt_price_with_commas(candle.high),
             fmt_price_with_commas(candle.low),
-            fmt_price_with_commas(candle.close),
-            vwap_label,
         )
     } else {
         format!(
-            "H: {}  L: {}  C: {}{}",
+            "H: {}  L: {}  C: ",
             fmt_price_with_commas(candle.high),
             fmt_price_with_commas(candle.low),
-            fmt_price_with_commas(candle.close),
-            vwap_label,
         )
     };
 
-    frame.fill_text(canvas::Text {
-        content: label,
-        position: Point::new(plot.x + 4.0, plot.y + 4.0),
-        color: Color::WHITE,
-        size: 14.0.into(),
-        font: iced::Font::with_name("Geist Mono"),
-        align_x: text::Alignment::Left,
-        align_y: iced::alignment::Vertical::Top,
-        ..canvas::Text::default()
-    });
+    let number = crate::modules::ui::ws_flash::format_usd(candle.close);
+    let close_value = format!("${}", number);
+
+    // Which byte offset in `number` begins the changed digits, if any.
+    let diff = flash.and_then(|f| f.diff_vs(candle.close));
+    let flash_color = flash.map(|f| f.color());
+
+    // Draw one tooltip segment at `x` and return the x for the next segment.
+    // "Geist Mono" is monospace, so a segment's width is ~0.6 * font size per
+    // character; this keeps the colored close adjacent to the white prefix.
+    let draw_segment = |frame: &mut Frame, x: f32, y: f32, text: &str, color: Color| -> f32 {
+        if text.is_empty() {
+            return x;
+        }
+        frame.fill_text(canvas::Text {
+            content: text.to_string(),
+            position: Point::new(x, y),
+            color,
+            size: 14.0.into(),
+            font: iced::Font::with_name("Geist Mono"),
+            align_x: text::Alignment::Left,
+            align_y: iced::alignment::Vertical::Top,
+            ..canvas::Text::default()
+        });
+        x + text.chars().count() as f32 * 14.0 * 0.6
+    };
+
+    let y = plot.y + 4.0;
+    let mut x = plot.x + 4.0;
+    match diff {
+        Some(i) if i < number.len() => {
+            if let Some(color) = flash_color {
+                let white_prefix = format!("{}${}", head, &number[..i]);
+                x = draw_segment(frame, x, y, &white_prefix, Color::WHITE);
+                x = draw_segment(frame, x, y, &number[i..], color);
+                draw_segment(frame, x, y, &vwap_label, Color::WHITE);
+            } else {
+                let whole = format!("{}{}{}", head, close_value, vwap_label);
+                draw_segment(frame, x, y, &whole, Color::WHITE);
+            }
+        }
+        _ => {
+            let whole = format!("{}{}{}", head, close_value, vwap_label);
+            draw_segment(frame, x, y, &whole, Color::WHITE);
+        }
+    }
 }

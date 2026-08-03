@@ -209,6 +209,14 @@ const PREVIEW_BORDER: Color = Color::from_rgba(0.3, 0.5, 1.0, 0.35);
 const RANGE_GREEN: Color = Color::from_rgb(0.0, 0.8, 0.3);
 const RANGE_RED: Color = Color::from_rgb(1.0, 0.1, 0.05);
 
+// Dark, slightly transparent pill behind the % label to improve contrast.
+const LABEL_PILL_FILL: Color = Color::from_rgba(0.04, 0.05, 0.09, 0.72);
+const LABEL_FONT_SIZE: f32 = 15.0;
+const LABEL_PADDING_X: f32 = 10.0;
+const LABEL_PADDING_Y: f32 = 3.0;
+/// Estimated horizontal advance per character for the monospace "Geist Mono" font.
+const LABEL_CHAR_WIDTH: f32 = LABEL_FONT_SIZE * 0.6;
+
 /// Draw all completed ranges and any in-progress range preview.
 pub fn draw_ranges(
     frame: &mut Frame,
@@ -291,11 +299,35 @@ fn draw_one_range_box(
 
     // Position label at the top inside the box
     let label_y = top + 8.0;
+    let center_x = (left + right) / 2.0;
+
+    // Pill background behind the label for visibility. The width is sized to
+    // the label itself so it is never clipped, even when the range box is
+    // narrower than the text.
+    let text_width = LABEL_CHAR_WIDTH * label.len() as f32;
+    let pill_width = text_width + LABEL_PADDING_X * 2.0;
+    let pill_height = LABEL_FONT_SIZE + LABEL_PADDING_Y * 2.0;
+    let pill_left = center_x - pill_width / 2.0;
+    let pill_center_y = label_y + LABEL_FONT_SIZE / 2.0;
+    let pill_top = pill_center_y - pill_height / 2.0;
+
+    let pill_path = Path::new(|p| {
+        p.rounded_rectangle(
+            Point::new(pill_left, pill_top),
+            iced::Size::new(pill_width, pill_height),
+            iced::border::radius(pill_height / 2.0),
+        );
+    });
+    frame.fill(&pill_path, Fill {
+        style: Style::Solid(LABEL_PILL_FILL),
+        ..Fill::default()
+    });
+
     frame.fill_text(canvas::Text {
         content: label,
-        position: Point::new((left + right) / 2.0, label_y),
+        position: Point::new(center_x, label_y),
         color: label_color,
-        size: 15.0.into(),
+        size: LABEL_FONT_SIZE.into(),
         font: iced::Font {
             family: iced::font::Family::Name("Geist Mono"),
             weight: iced::font::Weight::Bold,
@@ -404,28 +436,6 @@ pub fn handle_range_event(
             }
             RangeActionResult::RedrawAndCapture
         }
-        canvas::Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)) => {
-            // Right-click: delete a range if cursor is over one
-            if let Some(idx) = hit_test_ranges(
-                cursor_pt.x, cursor_pt.y, &plot,
-                x_min, x_max, y_min, y_max, state,
-            ) {
-                state.ranges.borrow_mut().remove(idx);
-                // Also cancel any pending placement
-                state.range_pending.set(None);
-                state.range_preview.set(None);
-                RangeActionResult::RedrawAndCapture
-            } else {
-                // Right-click elsewhere: cancel pending placement
-                if state.range_pending.get().is_some() {
-                    state.range_pending.set(None);
-                    state.range_preview.set(None);
-                    RangeActionResult::Redraw
-                } else {
-                    RangeActionResult::None
-                }
-            }
-        }
         canvas::Event::Mouse(mouse::Event::CursorMoved { .. }) => {
             // Update live preview if we have a 'from' point
             if state.range_pending.get().is_some() {
@@ -441,4 +451,69 @@ pub fn handle_range_event(
         }
         _ => RangeActionResult::None,
     }
+}
+
+/// Handle a global right-click: delete whichever drawing is under the cursor —
+/// either a range box or an anchored VWAP line — regardless of the active tool.
+/// If nothing is under the cursor, cancels any in-progress range placement.
+pub fn handle_right_click_delete(
+    cursor: iced::mouse::Cursor,
+    bounds: Rectangle,
+    state: &LineChartState,
+) -> RangeActionResult {
+    let plot = Rectangle {
+        x: bounds.x + 60.0,
+        y: bounds.y + 60.0,
+        width: bounds.width - 120.0,
+        height: bounds.height - 120.0,
+    };
+    let cursor_pt = match cursor.position_over(bounds) {
+        Some(pt) => pt,
+        None => return RangeActionResult::None,
+    };
+
+    // Only process if the cursor is inside the plot area.
+    if cursor_pt.x < plot.x || cursor_pt.x > plot.x + plot.width
+        || cursor_pt.y < plot.y || cursor_pt.y > plot.y + plot.height
+    {
+        return RangeActionResult::None;
+    }
+
+    let (x_min, x_max) = state.x_bounds();
+    let (y_min, y_max) = state.y_bounds();
+
+    // Range boxes are drawn on top of the VWAP lines, so hit-test them first.
+    if let Some(idx) = hit_test_ranges(
+        cursor_pt.x, cursor_pt.y, &plot,
+        x_min, x_max, y_min, y_max, state,
+    ) {
+        state.ranges.borrow_mut().remove(idx);
+        state.range_pending.set(None);
+        state.range_preview.set(None);
+        return RangeActionResult::RedrawAndCapture;
+    }
+
+    // Otherwise hit-test the anchored VWAP lines.
+    if let Some(list_idx) = hit_test_anchored_vwaps(
+        cursor_pt.x as f64,
+        cursor_pt.y as f64,
+        &plot,
+        x_min, x_max,
+        y_min, y_max,
+        &state.candles,
+        &state.anchors(),
+    ) {
+        state.remove_anchor_at(list_idx);
+        state.range_pending.set(None);
+        state.range_preview.set(None);
+        return RangeActionResult::RedrawAndCapture;
+    }
+
+    // Nothing was hit: cancel any in-progress range placement.
+    if state.range_pending.get().is_some() {
+        state.range_pending.set(None);
+        state.range_preview.set(None);
+        return RangeActionResult::Redraw;
+    }
+    RangeActionResult::None
 }
