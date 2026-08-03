@@ -43,3 +43,17 @@ pub const DASHBOARD_PLACEHOLDER_BORDER: Color = Color::from_rgb(
     0xb3 as f32 / 255.0,
     0x42 as f32 / 255.0,
 );
+
+/// Splash screen backdrop, consistent with the dark UI theme.
+pub const SPLASH_BACKGROUND: Color = Color::from_rgb(
+    0x1a as f32 / 255.0,
+    0x1a as f32 / 255.0,
+    0x1a as f32 / 255.0,
+);
+
+/// Splash screen accent, matching the logo's orange.
+pub const SPLASH_ACCENT: Color = Color::from_rgb(
+    0xf5 as f32 / 255.0,
+    0xb3 as f32 / 255.0,
+    0x42 as f32 / 255.0,
+);

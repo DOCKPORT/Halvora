@@ -12,6 +12,8 @@ use crate::modules::ui::mainwindow::app_icon;
 use crate::modules::ui::mainwindow::dashboard_layout::dashboard;
 use crate::modules::ui::mainwindow::sidebar::halving_sidebar;
 use crate::modules::ui::mainwindow::sidebar::blockchain_sidebar;
+use crate::modules::ui::splash_screen::state::{MainFadeInState, SplashState};
+use crate::modules::ui::splash_screen::splash;
 
 /// Embed the GeistMono font as fallback — the system-installed SemiBold
 /// variant will be used via the Font weight setting.
@@ -43,7 +45,18 @@ pub fn run() -> iced::Result {
         .run()
 }
 
+/// The application's top-level phase.
+enum AppPhase {
+    /// Shows the splash screen until its fixed duration elapses.
+    Splash(SplashState),
+    /// Fades the dashboard in after the splash, just before showing it fully.
+    MainFadeIn(MainFadeInState),
+    /// The main dashboard.
+    Main,
+}
+
 struct Halvora {
+    phase: AppPhase,
     selected_halving: Option<u32>,
     yoy_selected: bool,
     current_tip_height: u32,
@@ -183,13 +196,23 @@ impl Halvora {
         let coins_issued = crate::modules::compute::coins_issued::coins_issued(current_tip_height);
         let percentage_issued = crate::modules::compute::coins_issued::percentage_issued(current_tip_height);
         let remaining_issuance = crate::modules::compute::coins_issued::remaining_issuance(current_tip_height);
-        let all_time_high = crate::modules::compute::price_stats::all_time_high(None);
 
         let candles = crate::modules::compute::year_over_year::trailing_365_candles();
 
-        let metrics = crate::modules::compute::metrics::compute(&candles, None);
+        // Seed the live price with the latest known close from the database,
+        // so the dashboard shows a value immediately. The websocket takes over
+        // once the first trade price arrives.
+        let seeded_price = candles.last().map(|c| c.close);
+
+        let all_time_high = crate::modules::compute::price_stats::all_time_high(seeded_price);
+        // Compute the startup metrics and sidebar values from the seeded price
+        // so the dashboard is fully populated when it first appears.
+        let metrics = crate::modules::compute::metrics::compute(&candles, seeded_price);
+        let subsidy_value = crate::modules::compute::price_stats::subsidy_value(seeded_price, current_subsidy_sat);
+        let sats_per_usd = crate::modules::compute::price_stats::sats_per_usd(seeded_price);
 
         let mut state = Self {
+            phase: AppPhase::Splash(SplashState::new(SplashState::DURATION_SECS)),
             selected_halving: None,
             yoy_selected: true,
             current_tip_height,
@@ -199,9 +222,9 @@ impl Halvora {
             coins_issued,
             percentage_issued,
             remaining_issuance,
-            live_price: None,
-            subsidy_value: crate::modules::compute::price_stats::subsidy_value(None, current_subsidy_sat),
-            sats_per_usd: crate::modules::compute::price_stats::sats_per_usd(None),
+            live_price: seeded_price,
+            subsidy_value,
+            sats_per_usd,
             all_time_high,
             metrics,
             yoy_pl_sign: PLSign::NoChange,
@@ -265,17 +288,68 @@ pub enum Message {
     CloseCalmarDialog,
     SelectAVWAP,
     SelectRange,
+    /// Advances splash progress by the elapsed time since start.
+    SplashTick,
+    /// Switches the application from the splash to the main dashboard.
+    #[allow(dead_code)]
+    EnterMain,
 }
 
-fn subscription(_state: &Halvora) -> Subscription<Message> {
-    Subscription::batch(vec![
+fn subscription(state: &Halvora) -> Subscription<Message> {
+    let mut subs = vec![
         iced::time::every(std::time::Duration::from_secs(600)).map(|_| Message::Tick),
         crate::modules::api::bit_stamp::ws::live_price().map(Message::LivePrice),
         crate::modules::compute::midnight_rollover::detect().map(Message::NewDay),
-    ])
+    ];
+
+    // While the splash or the main fade-in is active, drive progress on a
+    // fixed interval (~60fps) to keep the animations smooth.
+    if matches!(state.phase, AppPhase::Splash(_) | AppPhase::MainFadeIn(_)) {
+        subs.push(
+            iced::time::every(Duration::from_millis(16)).map(|_| Message::SplashTick),
+        );
+    }
+
+    Subscription::batch(subs)
 }
 
 fn update(state: &mut Halvora, message: Message) {
+    // Handle transitional (splash / fade-in) messages on every tick.
+    if matches!(message, Message::SplashTick | Message::EnterMain) {
+        // Splash phase: advance progress, then move to the dashboard fade-in.
+        if let AppPhase::Splash(s) = &mut state.phase {
+            // Set the start time on the first tick, then measure progress
+            // relative to it.
+            let elapsed = match s.start_time() {
+                Some(t) => t.elapsed().as_secs_f32(),
+                None => {
+                    s.mark_started(Instant::now());
+                    0.0
+                }
+            };
+            s.advance(elapsed);
+            if s.is_finished() {
+                state.phase = AppPhase::MainFadeIn(MainFadeInState::new(
+                    MainFadeInState::FADE_IN_SECS,
+                ));
+            }
+            return;
+        }
+
+        // Main fade-in phase: advance the overlay opacity, then show fully.
+        if let AppPhase::MainFadeIn(f) = &mut state.phase {
+            // Set the start time on the first tick; opacity() reads elapsed
+            // time internally.
+            if f.start_time().is_none() {
+                f.mark_started(Instant::now());
+            }
+            if f.is_finished() {
+                state.phase = AppPhase::Main;
+            }
+            return;
+        }
+    }
+
     match message {
         Message::HalvingSelected(n) => {
             state.selected_halving = Some(n);
@@ -434,6 +508,9 @@ fn update(state: &mut Halvora, message: Message) {
             state.line_chart_state.drawing_mode
                 .set(crate::modules::ui::line_chart::state::DrawingMode::Range);
         }
+        Message::SplashTick | Message::EnterMain => {
+            // Handled above; unreachable once the phase is Main.
+        }
         Message::NewDay(_ts) => {
             // Midnight rollover — fetch the new day's candle and refresh the cache.
             crate::modules::api::bit_stamp::candle_sync::fetch_and_store();
@@ -456,6 +533,17 @@ fn update(state: &mut Halvora, message: Message) {
 }
 
 fn view(state: &Halvora) -> Element<'_, Message> {
+    // Show the splash screen while the app is in its splash phase.
+    if let AppPhase::Splash(splash_state) = &state.phase {
+        return splash::view(splash_state);
+    }
+
+    // The overlay alpha during the main fade-in; `None` when fully shown.
+    let fade_in_opacity = match &state.phase {
+        AppPhase::MainFadeIn(f) => Some(f.opacity()),
+        _ => None,
+    };
+
     let main_content: Element<'_, Message> = row![
         halving_sidebar::view(
             state.selected_halving,
@@ -568,8 +656,34 @@ fn view(state: &Halvora) -> Element<'_, Message> {
         .align_x(iced::Alignment::Center)
         .align_y(iced::Alignment::Center);
 
-        iced::widget::stack(vec![main_content, mouse_area(overlay).into()]).into()
+        let display = iced::widget::stack(vec![main_content, mouse_area(overlay).into()]).into();
+        if let Some(opacity) = fade_in_opacity {
+            fade_overlay(display, opacity)
+        } else {
+            display
+        }
+    } else if let Some(opacity) = fade_in_opacity {
+        fade_overlay(main_content, opacity)
     } else {
         main_content
     }
+}
+
+/// Layers a dark, semi-transparent overlay on top of `content` to produce
+/// a smooth fade-in. `opacity` is the overlay alpha (1.0 opaque → 0.0
+/// transparent).
+fn fade_overlay<'a>(
+    content: Element<'a, Message>,
+    opacity: f32,
+) -> Element<'a, Message> {
+    let overlay = container(iced::widget::Space::new())
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .style(move |_theme| container::Style {
+            background: Some(iced::Background::Color(
+                crate::modules::ui::theme::SPLASH_BACKGROUND.scale_alpha(opacity),
+            )),
+            ..Default::default()
+        });
+    iced::widget::stack(vec![content, overlay.into()]).into()
 }
