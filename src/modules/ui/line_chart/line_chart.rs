@@ -161,7 +161,9 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
                 true, // show vertical line
                 flash,
             );
-        } else if let Some((today_cdl, today_idx)) = today_candle(&self.data.candles) {
+        } else if let Some((today_cdl, today_idx)) = today_candle(&self.data.candles)
+            .or_else(|| last_candle(&self.data.candles))
+        {
             draw_crosshair(
                 &mut frame, &plot,
                 &today_cdl, today_idx,
@@ -650,6 +652,13 @@ fn today_candle(candles: &[Candle]) -> Option<(Candle, usize)> {
         .as_secs() as i64;
     let today_midnight = now - (now % 86_400);
     let i = candles.iter().position(|c| c.timestamp == today_midnight)?;
+    Some((candles[i], i))
+}
+
+/// Return the most recent candle and its index, used to keep the default
+/// tooltip visible while the new day's candle has not been fetched yet.
+fn last_candle(candles: &[Candle]) -> Option<(Candle, usize)> {
+    let i = candles.len().checked_sub(1)?;
     Some((candles[i], i))
 }
 

@@ -62,6 +62,7 @@ struct Halvora {
     yoy_selected: bool,
     current_tip_height: u32,
     current_subsidy_sat: i64,
+    mining_difficulty: f64,
     next_halving_eta: String,
     blocks_to_next_halving: String,
     coins_issued: String,
@@ -195,6 +196,7 @@ impl Halvora {
     fn new() -> Self {
         let current_tip_height = Self::load_tip_height();
         let current_subsidy_sat = Self::load_current_subsidy();
+        let mining_difficulty = Self::load_mining_difficulty();
         let next_halving_eta = crate::modules::compute::halving_eta::next_halving_eta(current_tip_height);
         let blocks_to_next_halving = crate::modules::compute::halving_eta::blocks_to_next_halving(current_tip_height);
         let coins_issued = crate::modules::compute::coins_issued::coins_issued(current_tip_height);
@@ -221,6 +223,7 @@ impl Halvora {
             yoy_selected: true,
             current_tip_height,
             current_subsidy_sat,
+            mining_difficulty,
             next_halving_eta,
             blocks_to_next_halving,
             coins_issued,
@@ -280,6 +283,22 @@ impl Halvora {
             }
         }
         0
+    }
+
+    /// Query the current mining difficulty from the database.
+    fn load_mining_difficulty() -> f64 {
+        let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
+        let db_path = base.join("Halvora").join("Mempool").join("blocks.db");
+        if let Ok(conn) = Connection::open(&db_path) {
+            if let Ok(difficulty) = conn.query_row(
+                "SELECT difficulty FROM current_tip LIMIT 1",
+                [],
+                |row| row.get(0),
+            ) {
+                return difficulty;
+            }
+        }
+        0.0
     }
 }
 
@@ -440,6 +459,7 @@ fn update(state: &mut Halvora, message: Message) {
             crate::modules::api::mempool::rest::halve_blocks::fetch_and_store();
             state.current_tip_height = Halvora::load_tip_height();
             state.current_subsidy_sat = Halvora::load_current_subsidy();
+            state.mining_difficulty = Halvora::load_mining_difficulty();
             // Keep the metric bar subsidy current for the active page.
             if let Some(n) = state.selected_halving {
                 state.subsidy_label =
@@ -629,7 +649,7 @@ fn view(state: &Halvora) -> Element<'_, Message> {
             &state.line_chart_state,
             &state.metrics,
         ),
-        blockchain_sidebar::view(state.current_tip_height, state.current_subsidy_sat, &state.next_halving_eta, &state.blocks_to_next_halving, &state.coins_issued, &state.percentage_issued, &state.remaining_issuance, state.live_price, spot_flash, &state.subsidy_value, &state.sats_per_usd, &state.all_time_high),
+        blockchain_sidebar::view(state.current_tip_height, state.current_subsidy_sat, state.mining_difficulty, &state.next_halving_eta, &state.blocks_to_next_halving, &state.coins_issued, &state.percentage_issued, &state.remaining_issuance, state.live_price, spot_flash, &state.subsidy_value, &state.sats_per_usd, &state.all_time_high),
     ]
     .width(Length::Fill)
     .height(Length::Fill)

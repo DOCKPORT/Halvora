@@ -3,6 +3,26 @@ use iced::{Color, Element, Length};
 use crate::modules::ui::theme;
 use crate::modules::ui::ws_flash::{self, WsFlash};
 
+/// Format a raw mining difficulty as a compact value, for example
+/// `126231507121868.2` becomes `126.23T`. Returns an em-dash when the value
+/// is non-positive (no data yet).
+fn fmt_difficulty(v: f64) -> String {
+    if v <= 0.0 {
+        return "\u{2014}".to_string();
+    }
+    if v >= 1_000_000_000_000.0 {
+        format!("{:.2}T", v / 1_000_000_000_000.0)
+    } else if v >= 1_000_000_000.0 {
+        format!("{:.2}B", v / 1_000_000_000.0)
+    } else if v >= 1_000_000.0 {
+        format!("{:.2}M", v / 1_000_000.0)
+    } else if v >= 1_000.0 {
+        format!("{:.2}K", v / 1_000.0)
+    } else {
+        format!("{:.2}", v)
+    }
+}
+
 fn value_text<'a>(
     content: String,
     color: Color,
@@ -48,6 +68,7 @@ fn info_card<'a>(
 pub fn view<'a>(
     current_tip_height: u32,
     current_subsidy_sat: i64,
+    mining_difficulty: f64,
     next_halving_eta: &str,
     blocks_to_next_halving: &str,
     coins_issued: &str,
@@ -112,6 +133,8 @@ pub fn view<'a>(
         info_card("Block Height", value_text(height_str, theme::HALVING_BUTTON_TEXT)),
         iced::widget::space().height(Length::Fixed(8.0)).into(),
         info_card("Current Subsidy", value_text(subsidy_str, theme::HALVING_BUTTON_TEXT)),
+        iced::widget::space().height(Length::Fixed(8.0)).into(),
+        info_card("Mining Difficulty", value_text(fmt_difficulty(mining_difficulty), theme::HALVING_BUTTON_TEXT)),
         iced::widget::space().height(Length::Fixed(8.0)).into(),
         info_card("Subsidy Value", value_text(subsidy_value.to_string(), theme::HALVING_BUTTON_TEXT)),
         iced::widget::space().height(Length::Fixed(8.0)).into(),

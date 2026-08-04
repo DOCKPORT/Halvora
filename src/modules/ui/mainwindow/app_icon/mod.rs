@@ -1,15 +1,21 @@
+/// The app icon SVG, embedded in the binary at compile time so the running
+/// program does not depend on any path on disk.
+const ICON_SVG: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/Halvora_Logo/halvoralogo.svg"
+));
+
 /// Rasterize the SVG app icon into the window icon.
 ///
-/// Loads `Halvora_Logo/halvoralogo.svg`, renders it at a high resolution, and
-/// converts the pixels into the icon format expected by the window system.
+/// Renders the embedded icon at a high resolution and converts the pixels
+/// into the icon format expected by the window system.
 ///
-/// Returns `None` when the SVG cannot be read, parsed, or rendered; the
-/// application then falls back to the platform default icon.
+/// Returns `None` when the SVG cannot be parsed or rendered; the application
+/// then falls back to the platform default icon.
 pub fn load_app_icon() -> Option<iced::window::Icon> {
     const ICON_SIZE: u32 = 256;
 
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/Halvora_Logo/halvoralogo.svg");
-    let svg_data = std::fs::read(path).ok()?;
+    let svg_data = ICON_SVG;
 
     let mut opt = resvg::usvg::Options::default();
     opt.fontdb_mut().load_system_fonts();

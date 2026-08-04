@@ -3,6 +3,13 @@ use iced::{border, Color, ContentFit, Element, Length};
 use crate::modules::compute::metrics::PLSign;
 use crate::modules::ui::theme;
 
+/// The sidebar banner SVG, embedded in the binary at compile time so the
+/// running program does not depend on any path on disk.
+const LOGO_SVG: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/Halvora_Logo/Halvora.svg"
+));
+
 /// Background color pairs for a button based on its P/L sign.
 ///
 /// Positive and negative use a light translucent tint. No-change (including
@@ -52,7 +59,7 @@ pub fn view<'a>(
         // appears on hover to signal that it is clickable.
         children.push(
             button(
-                svg::Svg::new("Halvora_Logo/Halvora.svg")
+                svg::Svg::new(svg::Handle::from_memory(LOGO_SVG))
                     .content_fit(ContentFit::Contain)
                     .width(Length::Fill)
                     .height(Length::Fixed(80.0)),

@@ -8,6 +8,13 @@ use iced::widget::{button, container, svg, text};
 use iced::{Color, ContentFit, Element, Length};
 use crate::modules::ui::mainwindow::application::Message;
 
+/// The GitHub icon SVG, embedded in the binary at compile time so the
+/// running program does not depend on any path on disk.
+const GITHUB_SVG: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/Halvora_Logo/GitHub_Invertocat_White_Clearspace.svg"
+));
+
 /// Render the About dialog as a full-screen dimmed overlay.
 ///
 /// The caller stacks this on top of the main content (wrapped in a
@@ -37,7 +44,7 @@ block subsidy.",
             .font(iced::Font::with_name("Geist Mono")),
         // The GitHub icon is the hyperlink; clicking it opens the repo.
         button(
-            svg::Svg::new("Halvora_Logo/GitHub_Invertocat_White_Clearspace.svg")
+            svg::Svg::new(svg::Handle::from_memory(GITHUB_SVG))
                 .content_fit(ContentFit::Contain)
                 .width(Length::Fixed(32.0))
                 .height(Length::Fixed(32.0)),

@@ -18,6 +18,9 @@ const INITIAL_SUBSIDY_SAT: i64 = 5_000_000_000;
 struct BlockJson {
     height: u32,
     timestamp: u64,
+    /// Network difficulty of this block. Defaults to 0 when absent.
+    #[serde(default)]
+    difficulty: f64,
 }
 
 
@@ -83,9 +86,10 @@ pub fn fetch_and_store() {
             subsidy         INTEGER NOT NULL
         );
         CREATE TABLE IF NOT EXISTS current_tip (
-            height    INTEGER NOT NULL,
-            timestamp INTEGER NOT NULL,
-            subsidy   INTEGER NOT NULL
+            height     INTEGER NOT NULL,
+            timestamp  INTEGER NOT NULL,
+            subsidy    INTEGER NOT NULL,
+            difficulty REAL
         );",
     ) {
         eprintln!("[mempool] failed to create tables: {}", e);
@@ -110,13 +114,23 @@ pub fn fetch_and_store() {
         )
         .unwrap_or(0);
 
-    // Update the single current-tip row (already exists from first sync).
-    if let Err(e) = conn.execute(
-        "UPDATE current_tip SET height = ?1, timestamp = ?2, subsidy = ?3",
-        rusqlite::params![tip.height, tip.timestamp as i64, subsidy],
-    ) {
-        eprintln!("[mempool] failed to update current_tip: {}", e);
-        return;
+    // Update the single current-tip row, inserting it on the first sync
+    // when the table is still empty.
+    let updated = conn
+        .execute(
+            "UPDATE current_tip SET height = ?1, timestamp = ?2, subsidy = ?3, difficulty = ?4",
+            rusqlite::params![tip.height, tip.timestamp as i64, subsidy, tip.difficulty],
+        )
+        .unwrap_or(0);
+    if updated == 0 {
+        if let Err(e) = conn.execute(
+            "INSERT INTO current_tip (height, timestamp, subsidy, difficulty)
+             VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params![tip.height, tip.timestamp as i64, subsidy, tip.difficulty],
+        ) {
+            eprintln!("[mempool] failed to insert current_tip: {}", e);
+            return;
+        }
     }
 
     // Fill timestamps for any halving that has been reached but still has NULL.
@@ -155,7 +169,7 @@ fn db_path() -> PathBuf {
 
 /// Fetch the latest block from the mempool.space API.
 fn fetch_latest_block() -> Option<BlockJson> {
-    let url = "https://mempool.space/api/blocks/tip";
+    let url = "https://mempool.space/api/v1/blocks";
     let text = reqwest::blocking::get(url).ok()?.text().ok()?;
     let blocks: Vec<BlockJson> = serde_json::from_str(&text).ok()?;
     blocks.into_iter().next()

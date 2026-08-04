@@ -4,12 +4,13 @@ use crate::modules::ui::theme;
 
 use super::state::SplashState;
 
-/// The on-disk banner SVG used by the splash screen. It contains the
-/// "HALVORA" wordmark and the circular logo mark.
-const LOGO_PATH: &str = concat!(
+/// The banner SVG used by the splash screen, embedded in the binary at
+/// compile time so the running program does not depend on any path on disk.
+/// It contains the "HALVORA" wordmark and the circular logo mark.
+const LOGO_SVG: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/Halvora_Logo/Halvora.svg"
-);
+));
 
 /// Width of the rendered banner, scaled to the current screen. The height is
 /// derived from the banner's wide aspect ratio via ContentFit::Contain.
@@ -22,7 +23,7 @@ pub fn view<'a>(state: &'a SplashState) -> Element<'a, crate::modules::ui::mainw
     // Current fade opacity in the range 0.0..=1.0.
     let opacity = state.opacity();
 
-    let logo_svg = svg(svg::Handle::from_path(LOGO_PATH))
+    let logo_svg = svg(svg::Handle::from_memory(LOGO_SVG))
         .width(Length::Fixed(crate::modules::ui::scaling::sp(LOGO_WIDTH)))
         .opacity(opacity);
 
