@@ -1,6 +1,7 @@
 use iced::widget::{button, container, scrollable, svg, Column, Row};
 use iced::{border, Color, ContentFit, Element, Length};
 use crate::modules::compute::metrics::PLSign;
+use crate::modules::ui::scaling::sp;
 use crate::modules::ui::theme;
 
 /// The sidebar banner SVG, embedded in the binary at compile time so the
@@ -40,13 +41,13 @@ pub fn view<'a>(
                 halving_button(i + 1, selected_halving, halving_pl_signs.get((i + 1) as usize).copied().unwrap_or(PLSign::NoChange))
             } else {
                 container(iced::widget::column![])
-                    .width(Length::Fixed(100.0))
-                    .height(Length::Fixed(36.0))
+                    .width(Length::Fixed(sp(100.0)))
+                    .height(Length::Fixed(sp(36.0)))
                     .into()
             },
         ])
-        .spacing(8)
-        .padding(iced::Padding::new(0.0).left(21.0).right(21.0))
+        .spacing(sp(8.0))
+        .padding(iced::Padding::new(0.0).left(sp(21.0)).right(sp(21.0)))
         .width(Length::Fill)
         .into();
         rows.push(row);
@@ -62,10 +63,10 @@ pub fn view<'a>(
                 svg::Svg::new(svg::Handle::from_memory(LOGO_SVG))
                     .content_fit(ContentFit::Contain)
                     .width(Length::Fill)
-                    .height(Length::Fixed(80.0)),
+                    .height(Length::Fixed(sp(80.0))),
             )
             .width(Length::Fill)
-            .height(Length::Fixed(80.0))
+            .height(Length::Fixed(sp(80.0)))
             .padding(0)
             .on_press(Message::AboutClicked)
             .style(|_theme, status| button::Style {
@@ -89,18 +90,18 @@ pub fn view<'a>(
         );
 
         // Spacer
-        children.push(iced::widget::space().height(Length::Fixed(8.0)).into());
+        children.push(iced::widget::space().height(Length::Fixed(sp(8.0))).into());
 
         // YoY button — same padding & width as grid rows for centering
         children.push(
             Row::with_children(vec![yoy_button(yoy_selected, yoy_pl_sign)])
-                .padding(iced::Padding::new(0.0).left(21.0).right(21.0))
+                .padding(iced::Padding::new(0.0).left(sp(21.0)).right(sp(21.0)))
                 .width(Length::Fill)
                 .into(),
         );
 
         // Spacer before grid
-        children.push(iced::widget::space().height(Length::Fixed(8.0)).into());
+        children.push(iced::widget::space().height(Length::Fixed(sp(8.0))).into());
 
         // Grid rows
         for row in rows {
@@ -109,19 +110,23 @@ pub fn view<'a>(
 
         children
     })
-    .spacing(8)
+    .spacing(sp(8.0))
     .padding(0);
 
-    container(scrollable(content))
-        .width(Length::Fixed(250.0))
-        .height(Length::Fill)
-        .padding(0)
-        .style(|_theme| {
-            container::Style::default().background(
-                iced::Background::Color(theme::SIDEBAR_BACKGROUND)
-            )
-        })
-        .into()
+    container(
+        scrollable(content)
+            .direction(crate::modules::ui::theme::sidebar_scrollbar_direction())
+            .style(crate::modules::ui::theme::sidebar_scrollable_style),
+    )
+    .width(Length::Fixed(sp(250.0)))
+    .height(Length::Fill)
+    .padding(0)
+    .style(|_theme| {
+        container::Style::default().background(
+            iced::Background::Color(theme::SIDEBAR_BACKGROUND)
+        )
+    })
+    .into()
 }
 
 fn yoy_button<'a>(
@@ -132,7 +137,7 @@ fn yoy_button<'a>(
 
     button(
         iced::widget::text("Year-Over-Year")
-            .size(16)
+            .size(sp(16.0))
             .width(Length::Shrink)
             .center()
             .font(iced::Font {
@@ -143,7 +148,7 @@ fn yoy_button<'a>(
             }),
     )
     .width(Length::Fill)
-    .height(Length::Fixed(36.0))
+    .height(Length::Fixed(sp(36.0)))
     .padding(0)
     .on_press(Message::YoYSelected)
     .style(move |_theme, status| {
@@ -183,7 +188,7 @@ fn halving_button<'a>(
 
     button(
         iced::widget::text(format!("H-{}", num))
-            .size(16)
+            .size(sp(16.0))
             .width(Length::Shrink)
             .center()
             .font(iced::Font {
@@ -193,8 +198,8 @@ fn halving_button<'a>(
                 style: iced::font::Style::Normal,
             }),
     )
-    .width(Length::Fixed(100.0))
-    .height(Length::Fixed(36.0))
+    .width(Length::Fixed(sp(100.0)))
+    .height(Length::Fixed(sp(36.0)))
     .padding(0)
     .on_press(Message::HalvingSelected(num))
     .style(move |_theme, status| {

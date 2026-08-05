@@ -6,6 +6,7 @@ use iced::{Color, Element, Point, Rectangle};
 use crate::modules::compute::vwap::progressive_vwap;
 use crate::modules::compute::year_over_year::Candle;
 use crate::modules::ui::line_chart::state::{DrawingMode, LineChartState, RangeBox};
+use crate::modules::ui::scaling::sp;
 use crate::modules::ui::theme;
 
 // ── Tool toggle buttons ─────────────────────────────────────────────────
@@ -23,11 +24,11 @@ fn tool_button<'a>(
 
     button(
         text(label)
-            .size(12)
+            .size(sp(12.0))
             .color(if active { Color::WHITE } else { theme::HALVING_BUTTON_TEXT }),
     )
     .on_press(on_press)
-    .padding(iced::Padding::new(4.0).horizontal(10.0))
+    .padding(iced::Padding::new(sp(4.0)).horizontal(sp(10.0)))
     .style(move |_theme, _status| button::Style {
         background: Some(iced::Background::Color(bg)),
         border: iced::border::rounded(10),
@@ -53,7 +54,7 @@ pub fn view<'a>(
             crate::modules::ui::mainwindow::application::Message::SelectRange,
         ),
     ]
-    .spacing(6)
+    .spacing(sp(6.0))
     .into()
 }
 

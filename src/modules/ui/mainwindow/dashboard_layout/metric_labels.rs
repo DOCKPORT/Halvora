@@ -1,6 +1,7 @@
 use iced::widget::{container, text, Row};
 use iced::{Color, Element, Length};
 use crate::modules::compute::metrics::Metrics;
+use crate::modules::ui::scaling::sp;
 use crate::modules::ui::theme;
 
 /// Line chart colours reused for P/L indicators.
@@ -16,11 +17,11 @@ fn metric_card<'a>(
 ) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
     let inner = iced::widget::Column::with_children(vec![
         text(label)
-            .size(15)
+            .size(sp(15.0))
             .color(theme::HALVING_BUTTON_TEXT)
             .into(),
         text(value)
-            .size(18)
+            .size(sp(18.0))
             .width(Length::Fill)
             .align_x(text::Alignment::Right)
             .font(iced::Font {
@@ -32,8 +33,8 @@ fn metric_card<'a>(
             .color(value_color)
             .into(),
     ])
-    .spacing(4)
-    .padding(iced::Padding::new(8.0));
+    .spacing(sp(4.0))
+    .padding(iced::Padding::new(sp(8.0)));
 
     container(inner)
         .width(Length::Fill)
@@ -89,7 +90,7 @@ pub fn view<'a>(
         metric_card("Subsidy", subsidy, theme::HALVING_BUTTON_TEXT, Some(theme::HALVING_BUTTON_BACKGROUND)),
         calmar_button.into(),
     ])
-    .spacing(8)
+    .spacing(sp(8.0))
     .width(Length::Fill)
     .into()
 }

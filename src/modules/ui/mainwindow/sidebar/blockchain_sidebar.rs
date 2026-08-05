@@ -1,5 +1,6 @@
 use iced::widget::{container, row, scrollable, text, Column};
 use iced::{Color, Element, Length};
+use crate::modules::ui::scaling::sp;
 use crate::modules::ui::theme;
 use crate::modules::ui::ws_flash::{self, WsFlash};
 
@@ -28,7 +29,7 @@ fn value_text<'a>(
     color: Color,
 ) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
     text(content)
-        .size(16)
+        .size(sp(16.0))
         .font(iced::Font {
             family: iced::font::Family::Name("Geist Mono"),
             weight: iced::font::Weight::Semibold,
@@ -45,13 +46,13 @@ fn info_card<'a>(
 ) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
     let inner = Column::with_children(vec![
         text(title)
-            .size(14)
+            .size(sp(14.0))
             .color(theme::HALVING_BUTTON_TEXT)
             .into(),
         value,
     ])
-    .spacing(4)
-    .padding(iced::Padding::new(8.0));
+    .spacing(sp(4.0))
+    .padding(iced::Padding::new(sp(8.0)));
 
     container(inner)
         .width(Length::Fill)
@@ -127,42 +128,46 @@ pub fn view<'a>(
         };
 
     let content = Column::with_children(vec![
-        iced::widget::space().height(Length::Fixed(8.0)).into(),
+        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card("Spot Price", spot_value),
-        iced::widget::space().height(Length::Fixed(8.0)).into(),
+        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card("Block Height", value_text(height_str, theme::HALVING_BUTTON_TEXT)),
-        iced::widget::space().height(Length::Fixed(8.0)).into(),
+        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card("Current Subsidy", value_text(subsidy_str, theme::HALVING_BUTTON_TEXT)),
-        iced::widget::space().height(Length::Fixed(8.0)).into(),
+        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card("Mining Difficulty", value_text(fmt_difficulty(mining_difficulty), theme::HALVING_BUTTON_TEXT)),
-        iced::widget::space().height(Length::Fixed(8.0)).into(),
+        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card("Subsidy Value", value_text(subsidy_value.to_string(), theme::HALVING_BUTTON_TEXT)),
-        iced::widget::space().height(Length::Fixed(8.0)).into(),
+        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card("Next Halving", value_text(next_halving_eta.to_string(), theme::HALVING_BUTTON_TEXT)),
-        iced::widget::space().height(Length::Fixed(8.0)).into(),
+        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card("Blocks to Halving", value_text(blocks_to_next_halving.to_string(), theme::HALVING_BUTTON_TEXT)),
-        iced::widget::space().height(Length::Fixed(8.0)).into(),
+        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card("Coins Minted", value_text(coins_issued.to_string(), theme::HALVING_BUTTON_TEXT)),
-        iced::widget::space().height(Length::Fixed(8.0)).into(),
+        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card("Percentage Issued", value_text(percentage_issued.to_string(), theme::HALVING_BUTTON_TEXT)),
-        iced::widget::space().height(Length::Fixed(8.0)).into(),
+        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card("Remaining Issuance", value_text(remaining_issuance.to_string(), theme::HALVING_BUTTON_TEXT)),
-        iced::widget::space().height(Length::Fixed(8.0)).into(),
+        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card("Sats per USD", value_text(sats_per_usd.to_string(), theme::HALVING_BUTTON_TEXT)),
-        iced::widget::space().height(Length::Fixed(8.0)).into(),
+        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card("All-Time High", value_text(all_time_high.to_string(), theme::HALVING_BUTTON_TEXT)),
     ])
     .spacing(0)
-    .padding(iced::Padding::new(0.0).left(21.0).right(21.0));
+    .padding(iced::Padding::new(0.0).left(sp(21.0)).right(sp(21.0)));
 
-    container(scrollable(content))
-        .width(Length::Fixed(250.0))
-        .height(Length::Fill)
-        .padding(0)
-        .style(|_theme| {
-            container::Style::default().background(
-                iced::Background::Color(theme::SIDEBAR_BACKGROUND)
-            )
-        })
-        .into()
+    container(
+        scrollable(content)
+            .direction(crate::modules::ui::theme::sidebar_scrollbar_direction())
+            .style(crate::modules::ui::theme::sidebar_scrollable_style),
+    )
+    .width(Length::Fixed(sp(250.0)))
+    .height(Length::Fill)
+    .padding(0)
+    .style(|_theme| {
+        container::Style::default().background(
+            iced::Background::Color(theme::SIDEBAR_BACKGROUND)
+        )
+    })
+    .into()
 }

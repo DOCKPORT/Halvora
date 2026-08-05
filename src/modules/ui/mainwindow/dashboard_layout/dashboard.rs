@@ -2,6 +2,7 @@ use iced::widget::{column, container, row, text};
 use iced::{border, Element, Length};
 use crate::modules::compute::metrics::Metrics;
 use crate::modules::ui::line_chart::{LineChart, LineChartState};
+use crate::modules::ui::scaling::sp;
 use crate::modules::ui::theme;
 use crate::modules::ui::volume_chart::VolumeChart;
 use super::drawing_tools;
@@ -41,7 +42,7 @@ pub fn view<'a>(
     let metrics_label: iced::widget::Column<'_, crate::modules::ui::mainwindow::application::Message> = if yoy_selected {
         column![
             text("Year")
-                .size(18)
+                .size(sp(18.0))
                 .font(iced::Font {
                     family: iced::font::Family::Name("Geist Mono"),
                     weight: iced::font::Weight::Normal,
@@ -51,7 +52,7 @@ pub fn view<'a>(
                 .color(theme::HALVING_BUTTON_TEXT)
                 .width(Length::Fill),
             text("Over")
-                .size(18)
+                .size(sp(18.0))
                 .font(iced::Font {
                     family: iced::font::Family::Name("Geist Mono"),
                     weight: iced::font::Weight::Normal,
@@ -61,7 +62,7 @@ pub fn view<'a>(
                 .color(theme::HALVING_BUTTON_TEXT)
                 .width(Length::Fill),
             text("Year")
-                .size(18)
+                .size(sp(18.0))
                 .font(iced::Font {
                     family: iced::font::Family::Name("Geist Mono"),
                     weight: iced::font::Weight::Normal,
@@ -71,14 +72,14 @@ pub fn view<'a>(
                 .color(theme::HALVING_BUTTON_TEXT)
                 .width(Length::Fill),
         ]
-        .width(Length::Fixed(100.0))
+        .width(Length::Fixed(sp(100.0)))
     } else {
         selected_halving.map_or(
-            iced::widget::column![].width(Length::Fixed(100.0)),
+            iced::widget::column![].width(Length::Fixed(sp(100.0))),
             |n| {
                 column![
                     text(format!("{}{}", n, ordinal_suffix(n)))
-                        .size(18)
+                        .size(sp(18.0))
                         .font(iced::Font {
                             family: iced::font::Family::Name("Geist Mono"),
                             weight: iced::font::Weight::Normal,
@@ -88,7 +89,7 @@ pub fn view<'a>(
                         .color(theme::HALVING_BUTTON_TEXT)
                         .width(Length::Fill),
                     text("HALVING")
-                        .size(18)
+                        .size(sp(18.0))
                         .font(iced::Font {
                             family: iced::font::Family::Name("Geist Mono"),
                             weight: iced::font::Weight::Normal,
@@ -98,7 +99,7 @@ pub fn view<'a>(
                         .color(theme::HALVING_BUTTON_TEXT)
                         .width(Length::Fill),
                 ]
-                .width(Length::Fixed(100.0))
+                .width(Length::Fixed(sp(100.0)))
             },
         )
     };
@@ -119,7 +120,7 @@ pub fn view<'a>(
     )
     .width(Length::Fill)
     .height(Length::FillPortion(1))
-    .padding(iced::Padding::new(0.0).left(16.0).right(16.0))
+    .padding(iced::Padding::new(0.0).left(sp(16.0)).right(sp(16.0)))
     .style(placeholder_style);
 
     // A future halving page has no data, so show its ETA instead of a chart.
@@ -137,7 +138,7 @@ pub fn view<'a>(
             .height(Length::Fill)
             .align_x(iced::Alignment::End)
             .align_y(iced::Alignment::Start)
-            .padding(iced::Padding::new(8.0));
+            .padding(iced::Padding::new(sp(8.0)));
 
             iced::widget::stack(vec![chart.into(), tools.into()]).into()
         } else if page_active {
@@ -152,19 +153,19 @@ pub fn view<'a>(
                         "{} HALVING",
                         heading,
                     ))
-                    .size(16)
+                    .size(sp(16.0))
                     .font(iced::Font::with_name("Geist Mono"))
                     .color(theme::HALVING_BUTTON_TEXT),
                     text(format!("ETA \u{2014} {}", eta_text))
-                        .size(14)
+                        .size(sp(14.0))
                         .font(iced::Font::with_name("Geist Mono"))
                         .color(theme::HALVING_BUTTON_TEXT),
                     text(format!("SUBSIDY \u{2014} {}", subsidy_text))
-                        .size(14)
+                        .size(sp(14.0))
                         .font(iced::Font::with_name("Geist Mono"))
                         .color(theme::HALVING_BUTTON_TEXT),
                 ]
-                .spacing(8)
+                .spacing(sp(8.0))
                 .align_x(iced::Alignment::Center),
             )
             .width(Length::Fill)
@@ -197,8 +198,8 @@ pub fn view<'a>(
 
     container(
         column![metrics, price, volume]
-            .spacing(16)
-            .padding(16)
+            .spacing(sp(16.0))
+            .padding(sp(16.0))
             .width(Length::Fill)
             .height(Length::Fill),
     )

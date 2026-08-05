@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use crate::modules::compute::metrics::{Metrics, PLSign};
 use crate::modules::compute::year_over_year::Candle;
 use crate::modules::ui::line_chart::LineChartState;
-use crate::modules::ui::scaling::Scaling;
+use crate::modules::ui::scaling::{sp, Scaling};
 use crate::modules::ui::mainwindow::about_dialog;
 use crate::modules::ui::mainwindow::app_icon;
 use crate::modules::ui::mainwindow::dashboard_layout::dashboard;
@@ -662,60 +662,60 @@ fn view(state: &Halvora) -> Element<'_, Message> {
             container(
                 iced::widget::column![
                     text("Calmar Ratio Details")
-                        .size(20)
+                        .size(sp(20.0))
                         .color(iced::Color::WHITE)
                         .font(iced::Font::with_name("Geist Mono")),
                     text("─")
-                        .size(12)
+                        .size(sp(12.0))
                         .color(iced::Color::from_rgb(0.4, 0.4, 0.4))
                         .font(iced::Font::with_name("Geist Mono")),
                     text("Formula: Annualized Return ÷ Max Drawdown")
-                        .size(13)
+                        .size(sp(13.0))
                         .color(iced::Color::from_rgb(0.8, 0.8, 0.8))
                         .font(iced::Font::with_name("Geist Mono")),
                     text("• Daily P/L%: (Close − Open) / Open")
-                        .size(12)
+                        .size(sp(12.0))
                         .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
                         .font(iced::Font::with_name("Geist Mono")),
                     text("• Weighted Avg: Σ(P/L% × Vol) / Σ(Vol)")
-                        .size(12)
+                        .size(sp(12.0))
                         .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
                         .font(iced::Font::with_name("Geist Mono")),
                     text("• Annualized: Weighted Avg × 365")
-                        .size(12)
+                        .size(sp(12.0))
                         .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
                         .font(iced::Font::with_name("Geist Mono")),
                     text("• Ratio: Annualized / Max DD")
-                        .size(12)
+                        .size(sp(12.0))
                         .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
                         .font(iced::Font::with_name("Geist Mono")),
                     text("─")
-                        .size(12)
+                        .size(sp(12.0))
                         .color(iced::Color::from_rgb(0.4, 0.4, 0.4))
                         .font(iced::Font::with_name("Geist Mono")),
                     text(format!("Weighted Avg P/L:  {}", &state.metrics.calmar_breakdown.weighted_avg_pl))
-                        .size(14)
+                        .size(sp(14.0))
                         .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
                         .font(iced::Font::with_name("Geist Mono")),
                     text(format!("Annualized Return:  {}", &state.metrics.calmar_breakdown.annualized_return))
-                        .size(14)
+                        .size(sp(14.0))
                         .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
                         .font(iced::Font::with_name("Geist Mono")),
                     text(format!("Max Drawdown:  {}", &state.metrics.calmar_breakdown.max_drawdown))
-                        .size(14)
+                        .size(sp(14.0))
                         .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
                         .font(iced::Font::with_name("Geist Mono")),
                     text(format!("Calmar Ratio:  {}", &state.metrics.calmar_breakdown.ratio))
-                        .size(14)
+                        .size(sp(14.0))
                         .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
                         .font(iced::Font::with_name("Geist Mono")),
                     iced::widget::button(
                         text("Close")
-                            .size(14)
+                            .size(sp(14.0))
                             .color(iced::Color::WHITE)
                     )
                     .on_press(Message::CloseCalmarDialog)
-                    .padding(iced::Padding::new(8.0).horizontal(16.0))
+                    .padding(iced::Padding::new(sp(8.0)).horizontal(sp(16.0)))
                     .style(|_theme, _status| iced::widget::button::Style {
                         background: Some(iced::Background::Color(iced::Color::from_rgb(0.3, 0.3, 0.3))),
                         border: iced::border::rounded(6),
@@ -724,11 +724,11 @@ fn view(state: &Halvora) -> Element<'_, Message> {
                         snap: false,
                     }),
                 ]
-                .spacing(12)
+                .spacing(sp(12.0))
                 .align_x(iced::Alignment::Center)
-                .padding(32),
+                .padding(sp(32.0)),
             )
-            .width(Length::Fixed(400.0))
+            .width(Length::Fixed(sp(400.0)))
             .style(|_theme| container::Style {
                 background: Some(iced::Background::Color(iced::Color::from_rgb(0.15, 0.15, 0.15))),
                 border: iced::border::rounded(12)

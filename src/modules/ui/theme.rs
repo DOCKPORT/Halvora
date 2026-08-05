@@ -1,3 +1,4 @@
+use iced::widget::scrollable;
 use iced::Color;
 
 pub const MAINWINDOW_BACKGROUND: Color = Color::from_rgb(
@@ -57,3 +58,31 @@ pub const SPLASH_ACCENT: Color = Color::from_rgb(
     0xb3 as f32 / 255.0,
     0x42 as f32 / 255.0,
 );
+
+/// Design width (in pixels at the 1920×1080 reference) of the slim sidebar
+/// scrollbar. The default iced scrollbar is 10 px; this is intentionally
+/// thinner.
+const SIDEBAR_SCROLLBAR_WIDTH: f32 = 6.0;
+
+/// Shared scrollable style for the sidebars.
+///
+/// Keeps the exact iced default appearance — only the scrollbar width is
+/// reduced. The width scales with the screen through `sp`.
+pub fn sidebar_scrollable_style(
+    theme: &iced::Theme,
+    status: scrollable::Status,
+) -> scrollable::Style {
+    scrollable::default(theme, status)
+}
+
+/// The slim vertical scrollbar direction used by the sidebars.
+///
+/// Both the rail and the scroller use the reduced `SIDEBAR_SCROLLBAR_WIDTH` so
+/// they stay visually consistent.
+pub fn sidebar_scrollbar_direction() -> scrollable::Direction {
+    scrollable::Direction::Vertical(
+        scrollable::Scrollbar::default()
+            .width(crate::modules::ui::scaling::sp(SIDEBAR_SCROLLBAR_WIDTH))
+            .scroller_width(crate::modules::ui::scaling::sp(SIDEBAR_SCROLLBAR_WIDTH)),
+    )
+}
