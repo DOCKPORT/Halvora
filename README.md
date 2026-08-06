@@ -49,4 +49,4 @@ Bitcoin's block reward halves 32 times until the 33rd halving reduces it to 0 sa
 
 ## Dashboard progress update
 
-![Dashboard Screenshot](Screenshots/Screenshot_2026-07-29_18-34-13.png)
+![Dashboard Screenshot](Screenshots/Screenshot_2026-08-05_19-58-22.png)

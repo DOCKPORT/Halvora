@@ -9,6 +9,7 @@ use super::axis;
 use super::state;
 use crate::modules::compute::year_over_year::Candle;
 use crate::modules::ui::line_chart::LineChartState;
+use crate::modules::ui::scaling::sp;
 
 /// The volume bar chart widget.
 pub struct VolumeChart<'a> {
@@ -146,7 +147,7 @@ impl<Message> canvas::Program<Message> for VolumeChartProgram<'_> {
                     content: format!("VOL: {:.2}", vol),
                     position: Point::new(plot.x + 4.0, plot.y + 4.0),
                     color: Color::WHITE,
-                    size: 14.0.into(),
+                    size: sp(14.0).into(),
                     font: iced::Font::with_name("Geist Mono"),
                     align_x: text::Alignment::Left,
                     align_y: iced::alignment::Vertical::Top,
@@ -290,7 +291,7 @@ fn draw_axis_labels(frame: &mut Frame, plot: &Rectangle, y_min: f64, y_max: f64)
             content: t.label.clone(),
             position: Point::new(plot.x - 8.0, y),
             color: TEXT_COLOR,
-            size: 12.0.into(),
+            size: sp(12.0).into(),
             font: iced::Font::with_name("Geist Mono"),
             align_x: text::Alignment::Right,
             align_y: iced::alignment::Vertical::Center,

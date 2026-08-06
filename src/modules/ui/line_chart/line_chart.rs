@@ -13,6 +13,7 @@ use super::state::LineChartState;
 use crate::modules::compute::vwap::progressive_vwap;
 use crate::modules::compute::year_over_year::Candle;
 use crate::modules::ui::mainwindow::dashboard_layout::drawing_tools;
+use crate::modules::ui::scaling::sp;
 
 /// Crosshair state tracked internally by the canvas program on mouse move.
 #[derive(Default, Clone, Copy)]
@@ -570,7 +571,7 @@ fn draw_axes_labels(
             content: t.label.clone(),
             position: Point::new(plot.x + plot.width + 8.0, y),
             color: TEXT_COLOR,
-            size: 12.0.into(),
+            size: sp(12.0).into(),
             font: iced::Font::with_name("Geist Mono"),
             align_x: text::Alignment::Left,
             align_y: iced::alignment::Vertical::Center,
@@ -605,7 +606,7 @@ fn draw_axes_labels(
             content: t.label.clone(),
             position: Point::new(x, plot.y + plot.height + 8.0),
             color: TEXT_COLOR,
-            size: 12.0.into(),
+            size: sp(12.0).into(),
             font: iced::Font::with_name("Geist Mono"),
             align_x: text::Alignment::Center,
             align_y: iced::alignment::Vertical::Top,
@@ -634,7 +635,7 @@ fn draw_axes_labels(
             content: t.label.clone(),
             position: Point::new(x, plot.y + plot.height + 24.0),
             color: TEXT_COLOR,
-            size: 12.0.into(),
+            size: sp(12.0).into(),
             font: iced::Font::with_name("Geist Mono"),
             align_x: text::Alignment::Center,
             align_y: iced::alignment::Vertical::Top,
@@ -771,13 +772,13 @@ fn draw_crosshair(
             content: text.to_string(),
             position: Point::new(x, y),
             color,
-            size: 14.0.into(),
+            size: sp(14.0).into(),
             font: iced::Font::with_name("Geist Mono"),
             align_x: text::Alignment::Left,
             align_y: iced::alignment::Vertical::Top,
             ..canvas::Text::default()
         });
-        x + text.chars().count() as f32 * 14.0 * 0.6
+        x + text.chars().count() as f32 * sp(14.0) * 0.6
     };
 
     let y = plot.y + 4.0;

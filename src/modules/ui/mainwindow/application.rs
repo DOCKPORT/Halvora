@@ -32,6 +32,8 @@ pub fn run() -> iced::Result {
         size: screen_size,
         #[cfg(target_os = "linux")]
         position: Position::Centered,
+        #[cfg(target_os = "linux")]
+        maximized: true,
         #[cfg(not(target_os = "linux"))]
         maximized: true,
         icon: app_icon::load_app_icon(),
@@ -98,6 +100,9 @@ struct Halvora {
     volume_sync_start: Instant,
     show_calmar_dialog: bool,
     show_about_dialog: bool,
+    /// A window resize awaiting debounced application. While set, a short
+    /// poll runs; when the resize events settle, the scale factor is applied.
+    pending_resize: Option<(iced::Size, Instant)>,
 }
 
 impl Halvora {
@@ -248,6 +253,7 @@ impl Halvora {
             volume_sync_start: Instant::now(),
             show_calmar_dialog: false,
             show_about_dialog: false,
+            pending_resize: None,
         };
         Self::refresh_halving_signs(&mut state);
         state
@@ -318,6 +324,12 @@ pub enum Message {
     CloseAboutDialog,
     SelectAVWAP,
     SelectRange,
+    /// The window was resized; records the target size for debounced
+    /// application (kept cheap so dragging stays smooth).
+    WindowResized(iced::Size),
+    /// Fires while a resize is pending; applies the scale factor once the
+    /// resize events settle.
+    ResizePoll,
     /// Advances splash progress by the elapsed time since start.
     SplashTick,
     /// Switches the application from the splash to the main dashboard.
@@ -325,11 +337,18 @@ pub enum Message {
     EnterMain,
 }
 
+/// How often the resize poll ticks while a resize is pending.
+const RESIZE_POLL_INTERVAL_MS: u64 = 30;
+
+/// How long after the last resize event before the scale factor is applied.
+const RESIZE_SETTLE_MS: std::time::Duration = std::time::Duration::from_millis(120);
+
 fn subscription(state: &Halvora) -> Subscription<Message> {
     let mut subs = vec![
         iced::time::every(std::time::Duration::from_secs(600)).map(|_| Message::Tick),
         crate::modules::api::bit_stamp::ws::live_price().map(Message::LivePrice),
         crate::modules::compute::midnight_rollover::detect().map(Message::NewDay),
+        iced::window::resize_events().map(|(_id, size)| Message::WindowResized(size)),
     ];
 
     // While a websocket price flash is active, tick frequently so it can expire
@@ -337,6 +356,15 @@ fn subscription(state: &Halvora) -> Subscription<Message> {
     if state.ws_flash.is_some() {
         subs.push(
             iced::time::every(Duration::from_millis(100)).map(|_| Message::WsFlashTick),
+        );
+    }
+
+    // While a window resize is pending, poll so the scale factor can be applied
+    // once the resize events settle. The poll stays off while idle.
+    if state.pending_resize.is_some() {
+        subs.push(
+            iced::time::every(Duration::from_millis(RESIZE_POLL_INTERVAL_MS))
+                .map(|_| Message::ResizePoll),
         );
     }
 
@@ -590,6 +618,22 @@ fn update(state: &mut Halvora, message: Message) {
         Message::SelectRange => {
             state.line_chart_state.drawing_mode
                 .set(crate::modules::ui::line_chart::state::DrawingMode::Range);
+        }
+        Message::WindowResized(size) => {
+            // Record the latest size and when it arrived. The actual scale
+            // factor is applied later by ResizePoll once the events settle,
+            // so the expensive `sp` re-layout does not run every frame.
+            state.pending_resize = Some((size, std::time::Instant::now()));
+        }
+        Message::ResizePoll => {
+            // Apply the pending resize once the user pauses the drag.
+            if let Some((size, last)) = state.pending_resize {
+                if last.elapsed() >= RESIZE_SETTLE_MS {
+                    crate::modules::ui::scaling::Scaling::global()
+                        .set_window_size(size.width, size.height);
+                    state.pending_resize = None;
+                }
+            }
         }
         Message::SplashTick | Message::EnterMain => {
             // Handled above; unreachable once the phase is Main.

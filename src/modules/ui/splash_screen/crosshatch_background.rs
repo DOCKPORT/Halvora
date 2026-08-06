@@ -12,6 +12,10 @@ const LINE_SPACING: f32 = 12.0;
 /// Width of each 45° line, in unscaled reference pixels.
 const LINE_WIDTH: f32 = 2.0;
 
+/// Grey used for the 45° lines. Exposed so callers (such as the blockchain
+/// sidebar's info card borders) can match the line colour exactly.
+pub const LINE_COLOR: Color = Color::from_rgba(0.6, 0.6, 0.6, 0.25);
+
 /// Uniform distance from each edge of the widget where lines stop.
 const EDGE_PADDING: f32 = 40.0;
 
@@ -23,11 +27,35 @@ const EDGE_PADDING: f32 = 40.0;
 pub struct BackgroundProgram {
     /// The splash fade opacity in the range 0.0..=1.0.
     pub opacity: f32,
+    /// Distance from the left and right edges where lines stop, in unscaled
+    /// reference pixels.
+    pub padding_x: f32,
+    /// Distance from the top and bottom edges where lines stop, in unscaled
+    /// reference pixels.
+    pub padding_y: f32,
 }
 
-/// Builds the splash background canvas widget.
+/// Builds the splash background canvas widget with uniform edge padding.
 pub fn view(opacity: f32) -> Element<'static, crate::modules::ui::mainwindow::application::Message> {
-    Canvas::new(BackgroundProgram { opacity })
+    view_with_padding(opacity, EDGE_PADDING)
+}
+
+/// Builds the background canvas widget with uniform edge padding.
+pub fn view_with_padding(
+    opacity: f32,
+    padding: f32,
+) -> Element<'static, crate::modules::ui::mainwindow::application::Message> {
+    view_with_h_v_padding(opacity, padding, padding)
+}
+
+/// Builds the background canvas widget with separate horizontal and vertical
+/// edge padding.
+pub fn view_with_h_v_padding(
+    opacity: f32,
+    padding_x: f32,
+    padding_y: f32,
+) -> Element<'static, crate::modules::ui::mainwindow::application::Message> {
+    Canvas::new(BackgroundProgram { opacity, padding_x, padding_y })
         .width(Length::Fill)
         .height(Length::Fill)
         .into()
@@ -48,19 +76,20 @@ impl<Message> canvas::Program<Message> for BackgroundProgram {
 
         let spacing = scaling::sp(LINE_SPACING);
         let line_width = scaling::sp(LINE_WIDTH);
-        let padding = scaling::sp(EDGE_PADDING);
+        let padding_x = scaling::sp(self.padding_x);
+        let padding_y = scaling::sp(self.padding_y);
 
-        let left = padding;
-        let top = padding;
-        let right = bounds.width - padding;
-        let bottom = bounds.height - padding;
+        let left = padding_x;
+        let top = padding_y;
+        let right = bounds.width - padding_x;
+        let bottom = bounds.height - padding_y;
 
         if right <= left || bottom <= top {
             return vec![frame.into_geometry()];
         }
 
         // Line colour tuned to the theme's grey, kept subtle.
-        let line_color = Color::from_rgba(0.6, 0.6, 0.6, 0.25).scale_alpha(self.opacity);
+        let line_color = LINE_COLOR.scale_alpha(self.opacity);
         let stroke = Stroke::default()
             .with_color(line_color)
             .with_width(line_width);

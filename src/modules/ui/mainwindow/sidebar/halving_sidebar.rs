@@ -1,4 +1,4 @@
-use iced::widget::{button, container, scrollable, svg, Column, Row};
+use iced::widget::{button, container, scrollable, stack, svg, Column, Row};
 use iced::{border, Color, ContentFit, Element, Length};
 use crate::modules::compute::metrics::PLSign;
 use crate::modules::ui::scaling::sp;
@@ -113,10 +113,26 @@ pub fn view<'a>(
     .spacing(sp(8.0))
     .padding(0);
 
-    container(
+    // Cross-hatch lines sit just below the buttons. `Stack` places all
+    // children on top of each other but aligns them to the top-left by
+    // default, so wrap the scrollable in a full-size transparent container.
+    let scrollable_layer: Element<'a, Message> = container(
         scrollable(content)
             .direction(crate::modules::ui::theme::sidebar_scrollbar_direction())
             .style(crate::modules::ui::theme::sidebar_scrollable_style),
+    )
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .padding(0)
+    .into();
+
+    container(
+        stack![
+            crate::modules::ui::splash_screen::crosshatch_background::view_with_h_v_padding(1.0, 12.0, 0.0),
+            scrollable_layer,
+        ]
+        .width(Length::Fill)
+        .height(Length::Fill),
     )
     .width(Length::Fixed(sp(250.0)))
     .height(Length::Fill)
@@ -164,7 +180,9 @@ fn yoy_button<'a>(
         let border = if is_selected {
             border::rounded(8).color(theme::HALVING_BUTTON_TEXT).width(1.5)
         } else {
-            border::rounded(8).color(iced::Color::TRANSPARENT).width(0)
+            border::rounded(8)
+                .color(iced::Color::from_rgb(0.6, 0.6, 0.6))
+                .width(1.0)
         };
 
         button::Style {
@@ -215,7 +233,9 @@ fn halving_button<'a>(
         let border = if is_selected {
             border::rounded(8).color(theme::HALVING_BUTTON_TEXT).width(1.5)
         } else {
-            border::rounded(8).color(iced::Color::TRANSPARENT).width(0)
+            border::rounded(8)
+                .color(iced::Color::from_rgb(0.6, 0.6, 0.6))
+                .width(1.0)
         };
 
         button::Style {

@@ -215,8 +215,6 @@ const LABEL_PILL_FILL: Color = Color::from_rgba(0.04, 0.05, 0.09, 0.72);
 const LABEL_FONT_SIZE: f32 = 15.0;
 const LABEL_PADDING_X: f32 = 10.0;
 const LABEL_PADDING_Y: f32 = 3.0;
-/// Estimated horizontal advance per character for the monospace "Geist Mono" font.
-const LABEL_CHAR_WIDTH: f32 = LABEL_FONT_SIZE * 0.6;
 
 /// Draw all completed ranges and any in-progress range preview.
 pub fn draw_ranges(
@@ -298,18 +296,24 @@ fn draw_one_range_box(
     };
     let label_color = if pct >= 0.0 { RANGE_GREEN } else { RANGE_RED };
 
+    // Scale the label font and its pill so they follow the window size.
+    let font_size = sp(LABEL_FONT_SIZE);
+    let padding_x = sp(LABEL_PADDING_X);
+    let padding_y = sp(LABEL_PADDING_Y);
+    let char_width = font_size * 0.6;
+
     // Position label at the top inside the box
-    let label_y = top + 8.0;
+    let label_y = top + sp(8.0);
     let center_x = (left + right) / 2.0;
 
     // Pill background behind the label for visibility. The width is sized to
     // the label itself so it is never clipped, even when the range box is
     // narrower than the text.
-    let text_width = LABEL_CHAR_WIDTH * label.len() as f32;
-    let pill_width = text_width + LABEL_PADDING_X * 2.0;
-    let pill_height = LABEL_FONT_SIZE + LABEL_PADDING_Y * 2.0;
+    let text_width = char_width * label.len() as f32;
+    let pill_width = text_width + padding_x * 2.0;
+    let pill_height = font_size + padding_y * 2.0;
     let pill_left = center_x - pill_width / 2.0;
-    let pill_center_y = label_y + LABEL_FONT_SIZE / 2.0;
+    let pill_center_y = label_y + font_size / 2.0;
     let pill_top = pill_center_y - pill_height / 2.0;
 
     let pill_path = Path::new(|p| {
@@ -328,7 +332,7 @@ fn draw_one_range_box(
         content: label,
         position: Point::new(center_x, label_y),
         color: label_color,
-        size: LABEL_FONT_SIZE.into(),
+        size: font_size.into(),
         font: iced::Font {
             family: iced::font::Family::Name("Geist Mono"),
             weight: iced::font::Weight::Bold,

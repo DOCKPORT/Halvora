@@ -1,4 +1,4 @@
-use iced::widget::{container, row, scrollable, text, Column};
+use iced::widget::{container, row, scrollable, stack, text, Column};
 use iced::{Color, Element, Length};
 use crate::modules::ui::scaling::sp;
 use crate::modules::ui::theme;
@@ -59,7 +59,9 @@ fn info_card<'a>(
         .style(|_theme| {
             container::Style {
                 background: Some(iced::Background::Color(theme::HALVING_BUTTON_BACKGROUND)),
-                border: iced::border::rounded(8),
+                border: iced::border::rounded(8)
+                    .color(iced::Color::from_rgb(0.6, 0.6, 0.6))
+                    .width(1.0),
                 ..Default::default()
             }
         })
@@ -156,10 +158,28 @@ pub fn view<'a>(
     .spacing(0)
     .padding(iced::Padding::new(0.0).left(sp(21.0)).right(sp(21.0)));
 
+    // Cross-hatch lines sit just below the labels layer, behind the info
+    // cards. `Stack` places all children on top of each other but aligns them
+    // to the top-left by default, so wrap the scrollable in a full-size
+    // container. The container is transparent so the cross-hatch shows through.
+    let scrollable_layer: Element<'a, crate::modules::ui::mainwindow::application::Message> =
+        container(
+            scrollable(content)
+                .direction(crate::modules::ui::theme::sidebar_scrollbar_direction())
+                .style(crate::modules::ui::theme::sidebar_scrollable_style),
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .padding(0)
+        .into();
+
     container(
-        scrollable(content)
-            .direction(crate::modules::ui::theme::sidebar_scrollbar_direction())
-            .style(crate::modules::ui::theme::sidebar_scrollable_style),
+        stack![
+            crate::modules::ui::splash_screen::crosshatch_background::view_with_h_v_padding(1.0, 12.0, 0.0),
+            scrollable_layer,
+        ]
+        .width(Length::Fill)
+        .height(Length::Fill),
     )
     .width(Length::Fixed(sp(250.0)))
     .height(Length::Fill)
