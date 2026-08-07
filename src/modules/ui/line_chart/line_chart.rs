@@ -389,6 +389,7 @@ fn screen_x_to_data(screen_x: f32, x_min: f64, x_max: f64, plot: &Rectangle) -> 
     x_min + f64::from(t) * (x_max - x_min)
 }
 
+#[allow(dead_code)]
 fn screen_y_to_data(screen_y: f32, y_min: f64, y_max: f64, plot: &Rectangle) -> f64 {
     let t = 1.0 - (screen_y - plot.y) / plot.height;
     y_min + f64::from(t) * (y_max - y_min)

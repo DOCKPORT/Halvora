@@ -26,6 +26,7 @@
 /// let result = cumulative_vwap(&prices);
 /// assert!((result.unwrap() - 106.66666666666667).abs() < 1e-10);
 /// ```
+#[allow(dead_code)]
 pub fn cumulative_vwap(prices: &[(f64, f64)]) -> Option<f64> {
     let (sum_pv, sum_v) = prices
         .iter()
@@ -72,6 +73,7 @@ pub fn cumulative_vwap(prices: &[(f64, f64)]) -> Option<f64> {
 /// // VWAP = (110*2000 + 105*1500) / (2000+1500) = 377500 / 3500 ≈ 107.8571
 /// assert!((result[2].unwrap() - 107.85714285714286).abs() < 1e-10);
 /// ```
+#[allow(dead_code)]
 pub fn rolling_vwap(prices: &[(f64, f64)], window_size: usize) -> Vec<Option<f64>> {
     assert!(window_size > 0, "window_size must be > 0");
 

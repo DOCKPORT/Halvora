@@ -10,10 +10,16 @@ const MINUTES_PER_BLOCK: u64 = 10;
 /// Shared helper: find blocks remaining until the next halving.
 /// Returns `None` if all halvings are past.
 fn blocks_remaining_until_next_halving(current_tip_height: u32) -> Option<u64> {
-    let next_height = (1..=HALVING_COUNT)
-        .map(|n| n * HALVING_INTERVAL)
-        .find(|&h| h > current_tip_height)?;
-    Some(u64::from(next_height - current_tip_height))
+    // The next halving is the first multiple of the interval strictly above
+    // the current height. Computed directly instead of scanning 1..=32.
+    // Use u64 for the multiply to rule out any overflow near u32::MAX.
+    let height = u64::from(current_tip_height);
+    let next_height = ((height / u64::from(HALVING_INTERVAL)) + 1) * u64::from(HALVING_INTERVAL);
+    // When the next height is past the final halving, all halvings are done.
+    if next_height > u64::from(HALVING_COUNT) * u64::from(HALVING_INTERVAL) {
+        return None;
+    }
+    Some(next_height - (current_tip_height as u64))
 }
 
 /// Format a number with thousands commas.

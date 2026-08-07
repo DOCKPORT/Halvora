@@ -1,3 +1,4 @@
+use crate::modules::app_data_dir::EXCHANGE;
 use rusqlite::Connection;
 use serde::Deserialize;
 use std::path::PathBuf;
@@ -180,7 +181,7 @@ pub fn fetch_and_store() {
 /// Return the path to the `SQLite` database.
 fn db_path() -> PathBuf {
     let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
-    base.join("Halvora").join("Exchange").join("btcusd.db")
+    base.join("Halvora").join(EXCHANGE).join("btcusd.db")
 }
 
 /// Fetch up to `limit` daily candles starting at `start_ts` (unix seconds).

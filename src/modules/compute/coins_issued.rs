@@ -39,6 +39,15 @@ fn total_sats_minted_at(height: u64) -> u64 {
     total_sats
 }
 
+/// Split a satoshi total into its whole-BTC and cents components.
+/// For example, 1_962_215_000_000_000 sat → `(19_622_150, 0)`.
+fn sats_to_btc_parts(total_sats: u64) -> (u64, u64) {
+    let whole_btc = total_sats / 100_000_000;
+    let frac_sats = total_sats % 100_000_000;
+    let cents = (frac_sats * 100) / 100_000_000;
+    (whole_btc, cents)
+}
+
 /// Format a BTC whole number (u64) with thousands commas and 2 decimal places.
 fn format_btc(whole_btc: u64, cents: u64) -> String {
     let whole = whole_btc.to_string();
@@ -64,10 +73,7 @@ pub fn coins_issued(current_tip_height: u32) -> String {
     }
 
     let total_sats = total_sats_minted_at(height);
-
-    let whole_btc = total_sats / 100_000_000;
-    let frac_sats = total_sats % 100_000_000;
-    let cents = (frac_sats * 100) / 100_000_000;
+    let (whole_btc, cents) = sats_to_btc_parts(total_sats);
 
     format_btc(whole_btc, cents)
 }
@@ -82,9 +88,7 @@ pub fn percentage_issued(current_tip_height: u32) -> String {
     }
 
     let total_sats = total_sats_minted_at(height);
-    let whole_btc = total_sats / 100_000_000;
-    let frac_sats = total_sats % 100_000_000;
-    let cents = (frac_sats * 100) / 100_000_000;
+    let (whole_btc, cents) = sats_to_btc_parts(total_sats);
 
     let mined_btc = whole_btc as f64 + (cents as f64 / 100.0);
     let pct = (mined_btc / MAX_SUPPLY_BTC as f64) * 100.0;
@@ -102,9 +106,7 @@ pub fn remaining_issuance(current_tip_height: u32) -> String {
     }
 
     let total_sats = total_sats_minted_at(height);
-    let whole_btc = total_sats / 100_000_000;
-    let frac_sats = total_sats % 100_000_000;
-    let cents = (frac_sats * 100) / 100_000_000;
+    let (whole_btc, cents) = sats_to_btc_parts(total_sats);
 
     let mined_btc = whole_btc as f64 + (cents as f64 / 100.0);
     let remaining_btc = MAX_SUPPLY_BTC as f64 - mined_btc;

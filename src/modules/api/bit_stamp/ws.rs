@@ -15,8 +15,11 @@ const WS_URL: &str = "wss://ws.bitstamp.net";
 const SUBSCRIBE_MSG: &str =
     r#"{"event": "bts:subscribe", "data": {"channel": "live_trades_btcusd"}}"#;
 
-/// Delay before reconnecting after a disconnect.
+/// Starting delay (seconds) before reconnecting after a disconnect.
 const RECONNECT_DELAY_SECS: u64 = 5;
+
+/// Upper bound (seconds) on the exponential backoff between reconnect attempts.
+const RECONNECT_BACKOFF_MAX_SECS: u64 = 30;
 
 /// How often to send a heartbeat ping to keep the link alive.
 const PING_INTERVAL_SECS: u64 = 45;
@@ -32,6 +35,9 @@ const LIVENESS_TIMEOUT_SECS: u64 = 5;
 #[derive(Deserialize)]
 struct WsMessage {
     #[serde(default)]
+    // Retained so serde ignores (rather than rejects) the `event` key that
+    // subscription-confirmation messages include.
+    #[allow(dead_code)]
     event: String,
     data: Option<TradeData>,
 }
@@ -56,19 +62,27 @@ struct TradeData {
 pub fn live_price() -> Subscription<f64> {
     Subscription::run(|| {
         stream::channel(100, |mut output: mpsc::Sender<f64>| async move {
+            // Current backoff delay for the next reconnect, starting at the
+            // base value. It doubles on each failed attempt up to the cap,
+            // and resets after a successful connection. Declared outside the
+            // loop so it persists across failed reconnect attempts.
+            let mut reconnect_delay = RECONNECT_DELAY_SECS;
+
             loop {
                 eprintln!("[bitstamp ws] connecting to {WS_URL}");
 
                 let ws = match connect_async(WS_URL).await {
                     Ok((ws, _)) => {
                         eprintln!("[bitstamp ws] connected");
+                        reconnect_delay = RECONNECT_DELAY_SECS;
                         ws
                     }
                     Err(e) => {
                         eprintln!(
-                            "[bitstamp ws] connection failed ({e}), retrying in {RECONNECT_DELAY_SECS}s"
+                            "[bitstamp ws] connection failed ({e}), retrying in {reconnect_delay}s"
                         );
-                        tokio::time::sleep(Duration::from_secs(RECONNECT_DELAY_SECS)).await;
+                        tokio::time::sleep(Duration::from_secs(reconnect_delay)).await;
+                        reconnect_delay = (reconnect_delay * 2).min(RECONNECT_BACKOFF_MAX_SECS);
                         continue;
                     }
                 };
@@ -81,7 +95,8 @@ pub fn live_price() -> Subscription<f64> {
                     .await
                 {
                     eprintln!("[bitstamp ws] subscribe failed ({e}), reconnecting");
-                    tokio::time::sleep(Duration::from_secs(RECONNECT_DELAY_SECS)).await;
+                    tokio::time::sleep(Duration::from_secs(reconnect_delay)).await;
+                    reconnect_delay = (reconnect_delay * 2).min(RECONNECT_BACKOFF_MAX_SECS);
                     continue;
                 }
 
@@ -168,8 +183,9 @@ pub fn live_price() -> Subscription<f64> {
                     }
                 }
 
-                // Delay before reconnecting.
-                tokio::time::sleep(Duration::from_secs(RECONNECT_DELAY_SECS)).await;
+                // Delay before reconnecting; back off if the link keeps failing.
+                tokio::time::sleep(Duration::from_secs(reconnect_delay)).await;
+                reconnect_delay = (reconnect_delay * 2).min(RECONNECT_BACKOFF_MAX_SECS);
             }
         })
     })

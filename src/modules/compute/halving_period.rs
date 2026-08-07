@@ -1,3 +1,4 @@
+use crate::modules::app_data_dir::{EXCHANGE, MEMPOOL};
 use crate::modules::compute::year_over_year::Candle;
 use rusqlite::Connection;
 use std::path::PathBuf;
@@ -93,13 +94,13 @@ fn query_period(
 /// Path to the mempool block database (`halve_blocks` table).
 fn blocks_db_path() -> PathBuf {
     let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
-    base.join("Halvora").join("Mempool").join("blocks.db")
+    base.join("Halvora").join(MEMPOOL).join("blocks.db")
 }
 
 /// Path to the daily candle database (`daily_candles` table).
 fn candles_db_path() -> PathBuf {
     let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
-    base.join("Halvora").join("Exchange").join("btcusd.db")
+    base.join("Halvora").join(EXCHANGE).join("btcusd.db")
 }
 
 /// Current unix time in seconds.
@@ -112,6 +113,7 @@ fn now_ts() -> i64 {
 /// Public: resolve the inclusive candle-day window for a halving period.
 ///
 /// Returns `None` when the halving has not occurred yet.
+#[allow(dead_code)]
 pub fn halving_period_range(halving_number: u32) -> Option<(i64, i64)> {
     let conn = Connection::open(blocks_db_path()).ok()?;
     range_from_conn(&conn, halving_number, now_ts())

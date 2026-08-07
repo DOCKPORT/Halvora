@@ -1,3 +1,4 @@
+use crate::modules::app_data_dir::MEMPOOL;
 use rusqlite::Connection;
 use serde::Deserialize;
 use std::path::PathBuf;
@@ -158,7 +159,7 @@ pub fn fetch_and_store() {
 /// Return the path to the `SQLite` database.
 fn db_path() -> PathBuf {
     let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
-    base.join("Halvora").join("Mempool").join("blocks.db")
+    base.join("Halvora").join(MEMPOOL).join("blocks.db")
 }
 
 /// Fetch the latest block from the mempool.space API.
