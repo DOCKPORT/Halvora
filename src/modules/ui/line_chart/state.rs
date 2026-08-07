@@ -37,7 +37,7 @@ pub struct LineChartState {
     pub drawing_mode: Cell<DrawingMode>,
     /// Completed range boxes drawn on the chart.
     pub ranges: RefCell<Vec<RangeBox>>,
-    /// During range placement: (from_ts, from_price) after first click, then
+    /// During range placement: (`from_ts`, `from_price`) after first click, then
     /// `None` when placement concludes or is cancelled.
     pub range_pending: Cell<Option<(f64, f64)>>,
     /// During range placement: current cursor position for live preview.

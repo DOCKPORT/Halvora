@@ -16,7 +16,7 @@ fn fmt_usd(value: f64) -> String {
         result.push(c);
     }
     result.push('.');
-    result.push_str(&format!("{:02}", cents));
+    result.push_str(&format!("{cents:02}"));
     result
 }
 
@@ -51,7 +51,7 @@ pub fn subsidy_value(live_price: Option<f64>, subsidy_sat: i64) -> String {
     if value >= 1.0 {
         format!("${}", fmt_usd(value))
     } else {
-        format!("${:.8}", value)
+        format!("${value:.8}")
     }
 }
 

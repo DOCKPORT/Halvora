@@ -65,7 +65,7 @@ pub fn compute(candles: &[Candle], live_price: Option<f64>) -> Metrics {
             let change = (live_price.unwrap() - candles.first().unwrap().close)
                 / candles.first().unwrap().close
                 * 100.0;
-            format!("\u{25B2} {:.2}%", change)
+            format!("\u{25B2} {change:.2}%")
         }
         PLSign::Negative => {
             let change = (live_price.unwrap() - candles.first().unwrap().close)
@@ -90,7 +90,7 @@ pub fn compute(candles: &[Candle], live_price: Option<f64>) -> Metrics {
             result.push(c);
         }
         result.push('.');
-        result.push_str(&format!("{:02}", cents));
+        result.push_str(&format!("{cents:02}"));
         result
     }
 
@@ -131,7 +131,7 @@ pub fn compute(candles: &[Candle], live_price: Option<f64>) -> Metrics {
     let draw_down = if max_dd < 0.001 {
         dash.clone()
     } else {
-        format!("{:.2}%", max_dd)
+        format!("{max_dd:.2}%")
     };
 
     // Max Run-up: largest trough-to-peak rise using high/low.
@@ -153,7 +153,7 @@ pub fn compute(candles: &[Candle], live_price: Option<f64>) -> Metrics {
         if max_ru < 0.001 {
             dash.clone()
         } else {
-            format!("{:.2}%", max_ru)
+            format!("{max_ru:.2}%")
         }
     };
 
@@ -196,13 +196,13 @@ pub fn compute(candles: &[Candle], live_price: Option<f64>) -> Metrics {
             let avg_daily_return = weighted_sum / total_vol;
             let annualized = avg_daily_return * 365.0;
             let ratio = annualized / (max_dd / 100.0);
-            let calmar_str = format!("{:.2}", ratio);
+            let calmar_str = format!("{ratio:.2}");
             (
                 calmar_str.clone(),
                 CalmarBreakdown {
                     weighted_avg_pl: format!("{:.4}%", avg_daily_return * 100.0),
                     annualized_return: format!("{:.2}%", annualized * 100.0),
-                    max_drawdown: format!("{:.2}%", max_dd),
+                    max_drawdown: format!("{max_dd:.2}%"),
                     ratio: calmar_str,
                 },
             )

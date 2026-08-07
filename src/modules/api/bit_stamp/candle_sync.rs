@@ -62,7 +62,7 @@ pub fn fetch_and_store() {
     let conn = match Connection::open(&db_path) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("[bitstamp] failed to open database {:?}: {}", db_path, e);
+            eprintln!("[bitstamp] failed to open database {db_path:?}: {e}");
             return;
         }
     };
@@ -81,7 +81,7 @@ pub fn fetch_and_store() {
             value INTEGER NOT NULL
         );",
     ) {
-        eprintln!("[bitstamp] failed to create tables: {}", e);
+        eprintln!("[bitstamp] failed to create tables: {e}");
         return;
     }
 
@@ -98,13 +98,12 @@ pub fn fetch_and_store() {
         .ok()
         .flatten();
 
-    let start_ts = latest_ts.map(|t| t + 86_400).unwrap_or(EPOCH_START);
+    let start_ts = latest_ts.map_or(EPOCH_START, |t| t + 86_400);
 
     // Today's midnight (00:00:00 UTC) — includes the current incomplete candle.
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0);
+        .map_or(0, |d| d.as_secs() as i64);
     let today_midnight = now - (now % 86_400);
 
     if start_ts > today_midnight {
@@ -128,8 +127,7 @@ pub fn fetch_and_store() {
     }
 
     eprintln!(
-        "[bitstamp] gap of {} day(s) to fill (with 1-candle buffer)",
-        gap_days
+        "[bitstamp] gap of {gap_days} day(s) to fill (with 1-candle buffer)"
     );
 
     // Paginate backwards from today_midnight, using an appropriate limit per page.
@@ -142,12 +140,11 @@ pub fn fetch_and_store() {
         let batch_start = cursor - (limit - 1) * 86_400;
 
         eprintln!(
-            "[bitstamp] fetching {} candles starting at {}",
-            limit, batch_start
+            "[bitstamp] fetching {limit} candles starting at {batch_start}"
         );
 
         let Some(candles) = fetch_page(batch_start, limit) else {
-            eprintln!("[bitstamp] API error at start={}, aborting", batch_start);
+            eprintln!("[bitstamp] API error at start={batch_start}, aborting");
             break;
         };
 
@@ -162,7 +159,7 @@ pub fn fetch_and_store() {
         );
 
         // If this batch already covered down to start_ts, we're done.
-        let earliest_in_batch = candles.first().map(|c| c.timestamp).unwrap_or(batch_start);
+        let earliest_in_batch = candles.first().map_or(batch_start, |c| c.timestamp);
 
         if earliest_in_batch <= start_ts {
             break;
@@ -180,14 +177,13 @@ pub fn fetch_and_store() {
     }
 
     eprintln!(
-        "[bitstamp] sync complete – {} new candles stored",
-        total_inserted
+        "[bitstamp] sync complete – {total_inserted} new candles stored"
     );
 }
 
 // ── Internal helpers ────────────────────────────────────────────────────
 
-/// Return the path to the SQLite database.
+/// Return the path to the `SQLite` database.
 fn db_path() -> PathBuf {
     let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
     base.join("Halvora").join("Exchange").join("btcusd.db")
@@ -198,8 +194,7 @@ fn db_path() -> PathBuf {
 /// Returns `None` on any network or parse error.
 fn fetch_page(start_ts: i64, limit: i64) -> Option<Vec<Candle>> {
     let url = format!(
-        "https://www.bitstamp.net/api/v2/ohlc/btcusd/?step=86400&limit={}&start={}",
-        limit, start_ts
+        "https://www.bitstamp.net/api/v2/ohlc/btcusd/?step=86400&limit={limit}&start={start_ts}"
     );
 
     let text = reqwest::blocking::get(&url).ok()?.text().ok()?;
@@ -234,8 +229,7 @@ fn fetch_page(start_ts: i64, limit: i64) -> Option<Vec<Candle>> {
 fn refresh_today_volume_if_stale(conn: &Connection) {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0);
+        .map_or(0, |d| d.as_secs() as i64);
     let last_fetch: Option<i64> = conn
         .query_row(
             "SELECT value FROM metadata WHERE key = 'last_volume_fetch'",
@@ -264,7 +258,7 @@ fn refresh_today_volume_if_stale(conn: &Connection) {
         "INSERT OR REPLACE INTO metadata (key, value) VALUES ('last_volume_fetch', ?1)",
         rusqlite::params![now],
     ) {
-        eprintln!("[bitstamp] failed to update volume fetch timestamp: {}", e);
+        eprintln!("[bitstamp] failed to update volume fetch timestamp: {e}");
     }
 }
 
@@ -276,8 +270,7 @@ fn refresh_today_volume_if_stale(conn: &Connection) {
 pub fn update_today_volume() {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0);
+        .map_or(0, |d| d.as_secs() as i64);
     let today_midnight = now - (now % 86_400);
 
     let Some(candles) = fetch_page(today_midnight, 1) else {
@@ -289,8 +282,7 @@ pub fn update_today_volume() {
         Ok(c) => c,
         Err(e) => {
             eprintln!(
-                "[bitstamp] failed to open database for volume update: {}",
-                e
+                "[bitstamp] failed to open database for volume update: {e}"
             );
             return;
         }
@@ -306,7 +298,7 @@ fn store_candles(conn: &Connection, candles: &[Candle]) -> u64 {
 
     // Use a transaction for performance when inserting many rows.
     if let Err(e) = conn.execute_batch("BEGIN TRANSACTION") {
-        eprintln!("[bitstamp] failed to begin transaction: {}", e);
+        eprintln!("[bitstamp] failed to begin transaction: {e}");
         return 0;
     }
 
@@ -322,7 +314,7 @@ fn store_candles(conn: &Connection, candles: &[Candle]) -> u64 {
     }
 
     if let Err(e) = conn.execute_batch("COMMIT") {
-        eprintln!("[bitstamp] failed to commit transaction: {}", e);
+        eprintln!("[bitstamp] failed to commit transaction: {e}");
     }
 
     count

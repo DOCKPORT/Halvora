@@ -14,7 +14,7 @@ const LOGO_SVG: &[u8] = include_bytes!(concat!(
 ));
 
 /// Width of the rendered banner, scaled to the current screen. The height is
-/// derived from the banner's wide aspect ratio via ContentFit::Contain.
+/// derived from the banner's wide aspect ratio via `ContentFit::Contain`.
 const LOGO_WIDTH: f32 = 420.0;
 
 /// Uniform padding around the logo and progress bar that forms the solid
@@ -24,9 +24,9 @@ const BACKDROP_PADDING: f32 = 24.0;
 /// Renders the splash screen: centered banner with a drop shadow and a
 /// progress bar. The splash fades out before the transition to the main
 /// dashboard, driven by `SplashState::opacity`.
-pub fn view<'a>(
-    state: &'a SplashState,
-) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
+pub fn view(
+    state: &SplashState,
+) -> Element<'_, crate::modules::ui::mainwindow::application::Message> {
     // Hold a completely empty frame until the true window size (and thus the
     // scale factor) is known. Rendering nothing avoids any size-dependent
     // content at the wrong scale, which would cause a startup jump.

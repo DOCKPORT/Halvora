@@ -20,7 +20,7 @@ fn fmt_difficulty(v: f64) -> String {
     } else if v >= 1_000.0 {
         format!("{:.2}K", v / 1_000.0)
     } else {
-        format!("{:.2}", v)
+        format!("{v:.2}")
     }
 }
 
@@ -93,7 +93,7 @@ pub fn view<'a>(
         result
     }
 
-    let height_str = fmt_commas(current_tip_height as u64);
+    let height_str = fmt_commas(u64::from(current_tip_height));
     // Reuse the same formatter as the page metric labels so trailing zeros
     // are trimmed, e.g. "3.125 BTC" instead of "3.12500000".
     let subsidy_str =
@@ -106,12 +106,11 @@ pub fn view<'a>(
         match live_price {
             Some(p) => {
                 let number = ws_flash::format_usd(p);
-                let full = format!("${}", number);
-                match spot_flash.and_then(|f| f.diff_index()) {
+                let full = format!("${number}");
+                match spot_flash.and_then(crate::modules::ui::ws_flash::WsFlash::diff_index) {
                     Some(i) if i < number.len() => {
                         let color = spot_flash
-                            .map(|f| f.color())
-                            .unwrap_or(theme::HALVING_BUTTON_TEXT);
+                            .map_or(theme::HALVING_BUTTON_TEXT, crate::modules::ui::ws_flash::WsFlash::color);
                         let prefix = format!("${}", &number[..i]);
                         let suffix = number[i..].to_string();
                         row![

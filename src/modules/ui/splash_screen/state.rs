@@ -82,8 +82,7 @@ impl SplashState {
     /// Returns `0.0` when the splash has not started yet.
     pub fn elapsed_secs(&self) -> f32 {
         self.start_time
-            .map(|t| t.elapsed().as_secs_f32())
-            .unwrap_or(0.0)
+            .map_or(0.0, |t| t.elapsed().as_secs_f32())
     }
 
     /// The current opacity in the range 0.0..=1.0.
@@ -145,8 +144,7 @@ impl MainFadeInState {
     /// Returns `0.0` when the fade-in has not started yet.
     pub fn elapsed_secs(&self) -> f32 {
         self.start_time
-            .map(|t| t.elapsed().as_secs_f32())
-            .unwrap_or(0.0)
+            .map_or(0.0, |t| t.elapsed().as_secs_f32())
     }
 
     /// The current overlay opacity in the range 0.0..=1.0.

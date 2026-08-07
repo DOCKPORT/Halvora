@@ -155,8 +155,7 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
         // it must never flash.
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0);
+            .map_or(0, |d| d.as_secs() as i64);
         let today_midnight = now - (now % 86_400);
         if let (Some(candle), Some(active_idx)) = (&state.candle, state.active_idx) {
             let live_flash = if candle.timestamp == today_midnight {
@@ -341,13 +340,13 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
                         }
                         _ => return None,
                     };
-                    if new_idx != idx {
+                    if new_idx == idx {
+                        None
+                    } else {
                         state.active_idx = Some(new_idx);
                         state.candle = Some(candles[new_idx]);
                         self.data.hovered_index.set(Some(new_idx));
                         Some(canvas::Action::request_redraw().and_capture())
-                    } else {
-                        None
                     }
                 }
                 _ => None,
@@ -387,12 +386,12 @@ fn data_y_to_screen(price: f64, y_min: f64, y_max: f64, plot: &Rectangle) -> f32
 
 fn screen_x_to_data(screen_x: f32, x_min: f64, x_max: f64, plot: &Rectangle) -> f64 {
     let t = (screen_x - plot.x) / plot.width;
-    x_min + (t as f64) * (x_max - x_min)
+    x_min + f64::from(t) * (x_max - x_min)
 }
 
 fn screen_y_to_data(screen_y: f32, y_min: f64, y_max: f64, plot: &Rectangle) -> f64 {
     let t = 1.0 - (screen_y - plot.y) / plot.height;
-    y_min + (t as f64) * (y_max - y_min)
+    y_min + f64::from(t) * (y_max - y_min)
 }
 
 // ── Colour constants ─────────────────────────────────────────────────────
@@ -729,7 +728,7 @@ fn draw_crosshair(
             result.push(c);
         }
         result.push('.');
-        result.push_str(&format!("{:02}", cents));
+        result.push_str(&format!("{cents:02}"));
         result
     }
 
@@ -793,7 +792,7 @@ fn draw_crosshair(
     };
 
     let number = crate::modules::ui::ws_flash::format_usd(candle.close);
-    let close_value = format!("${}", number);
+    let close_value = format!("${number}");
 
     // Which byte offset in `number` begins the changed digits, if any.
     let diff = flash.and_then(|f| f.diff_vs(candle.close));
@@ -829,12 +828,12 @@ fn draw_crosshair(
                 x = draw_segment(frame, x, y, &number[i..], color);
                 draw_segment(frame, x, y, &vwap_label, Color::WHITE);
             } else {
-                let whole = format!("{}{}{}", head, close_value, vwap_label);
+                let whole = format!("{head}{close_value}{vwap_label}");
                 draw_segment(frame, x, y, &whole, Color::WHITE);
             }
         }
         _ => {
-            let whole = format!("{}{}{}", head, close_value, vwap_label);
+            let whole = format!("{head}{close_value}{vwap_label}");
             draw_segment(frame, x, y, &whole, Color::WHITE);
         }
     }

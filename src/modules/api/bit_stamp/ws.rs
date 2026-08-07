@@ -51,13 +51,13 @@ struct TradeData {
 /// - A ping is sent every `PING_INTERVAL_SECS` to keep NAT/firewall
 ///   mappings alive and to probe the link on quiet stretches.
 /// - If no reply arrives within `LIVENESS_TIMEOUT_SECS` after a ping,
-///   the link is treated as dead (for example, after a WiFi drop) and
+///   the link is treated as dead (for example, after a `WiFi` drop) and
 ///   the connection is re-established instead of blocking forever.
 pub fn live_price() -> Subscription<f64> {
     Subscription::run(|| {
         stream::channel(100, |mut output: mpsc::Sender<f64>| async move {
             loop {
-                eprintln!("[bitstamp ws] connecting to {}", WS_URL);
+                eprintln!("[bitstamp ws] connecting to {WS_URL}");
 
                 let ws = match connect_async(WS_URL).await {
                     Ok((ws, _)) => {
@@ -66,8 +66,7 @@ pub fn live_price() -> Subscription<f64> {
                     }
                     Err(e) => {
                         eprintln!(
-                            "[bitstamp ws] connection failed ({}), retrying in {}s",
-                            e, RECONNECT_DELAY_SECS
+                            "[bitstamp ws] connection failed ({e}), retrying in {RECONNECT_DELAY_SECS}s"
                         );
                         tokio::time::sleep(Duration::from_secs(RECONNECT_DELAY_SECS)).await;
                         continue;
@@ -81,7 +80,7 @@ pub fn live_price() -> Subscription<f64> {
                     .send(Message::Text(SUBSCRIBE_MSG.to_string().into()))
                     .await
                 {
-                    eprintln!("[bitstamp ws] subscribe failed ({}), reconnecting", e);
+                    eprintln!("[bitstamp ws] subscribe failed ({e}), reconnecting");
                     tokio::time::sleep(Duration::from_secs(RECONNECT_DELAY_SECS)).await;
                     continue;
                 }
@@ -108,7 +107,7 @@ pub fn live_price() -> Subscription<f64> {
                             let msg = match msg {
                                 Some(Ok(msg)) => msg,
                                 Some(Err(e)) => {
-                                    eprintln!("[bitstamp ws] read error ({}), reconnecting", e);
+                                    eprintln!("[bitstamp ws] read error ({e}), reconnecting");
                                     break;
                                 }
                                 None => {
@@ -155,7 +154,7 @@ pub fn live_price() -> Subscription<f64> {
                             )));
                         }
 
-                        _ = async {
+                        () = async {
                             if let Some(probe) = &mut liveness_probe {
                                 probe.as_mut().await;
                             } else {

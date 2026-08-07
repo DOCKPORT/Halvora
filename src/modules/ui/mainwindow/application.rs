@@ -16,7 +16,7 @@ use rusqlite::Connection;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-/// Embed the GeistMono font as fallback — the system-installed SemiBold
+/// Embed the `GeistMono` font as fallback — the system-installed `SemiBold`
 /// variant will be used via the Font weight setting.
 const GEIST_MONO_BYTES: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -116,8 +116,7 @@ impl Halvora {
         let last_ts = state.line_chart_state.candles.last().map(|c| c.timestamp)?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0);
+            .map_or(0, |d| d.as_secs() as i64);
         let today_midnight = now - (now % 86_400);
         if last_ts == today_midnight {
             // Live period: use the websocket price as today's running close.
@@ -137,8 +136,7 @@ impl Halvora {
         let last_ts = candles.last().map(|c| c.timestamp)?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0);
+            .map_or(0, |d| d.as_secs() as i64);
         let today_midnight = now - (now % 86_400);
         if last_ts == today_midnight {
             live_price
@@ -161,7 +159,7 @@ impl Halvora {
     }
 
     /// Recompute the YOY and all 32 halving signs, and re-detect the live
-    /// halving. Called on startup, Tick, and NewDay (infrequent paths).
+    /// halving. Called on startup, Tick, and `NewDay` (infrequent paths).
     fn refresh_halving_signs(state: &mut Self) {
         state.yoy_pl_sign =
             crate::modules::compute::metrics::pl_sign(&state.yoy_candles, state.live_price);
@@ -343,7 +341,7 @@ const RESIZE_SETTLE_MS: std::time::Duration = std::time::Duration::from_millis(1
 
 fn subscription(state: &Halvora) -> Subscription<Message> {
     let mut subs = vec![
-        iced::time::every(std::time::Duration::from_secs(600)).map(|_| Message::Tick),
+        iced::time::every(std::time::Duration::from_mins(10)).map(|_| Message::Tick),
         crate::modules::api::bit_stamp::ws::live_price().map(Message::LivePrice),
         crate::modules::compute::midnight_rollover::detect().map(Message::NewDay),
         iced::window::resize_events().map(|(_id, size)| Message::WindowResized(size)),
@@ -387,12 +385,9 @@ fn update(state: &mut Halvora, message: Message) {
             }
             // Set the start time on the first tick, then measure progress
             // relative to it.
-            let elapsed = match s.start_time() {
-                Some(t) => t.elapsed().as_secs_f32(),
-                None => {
-                    s.mark_started(Instant::now());
-                    0.0
-                }
+            let elapsed = if let Some(t) = s.start_time() { t.elapsed().as_secs_f32() } else {
+                s.mark_started(Instant::now());
+                0.0
             };
             s.advance(elapsed);
             if s.is_finished() {
@@ -449,8 +444,7 @@ fn update(state: &mut Halvora, message: Message) {
             if let Some(price) = state.live_price {
                 let now = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
-                    .map(|d| d.as_secs() as i64)
-                    .unwrap_or(0);
+                    .map_or(0, |d| d.as_secs() as i64);
                 let today_midnight = now - (now % 86_400);
                 if let Some(last) = candles.last_mut()
                     && last.timestamp == today_midnight
@@ -534,7 +528,7 @@ fn update(state: &mut Halvora, message: Message) {
             Halvora::refresh_halving_signs(state);
 
             // Hourly volume sync for today's partial candle (with 1h cooldown at startup).
-            if state.volume_sync_start.elapsed() >= Duration::from_secs(3600) {
+            if state.volume_sync_start.elapsed() >= Duration::from_hours(1) {
                 crate::modules::api::bit_stamp::candle_sync::update_today_volume();
                 let candles = crate::modules::compute::year_over_year::trailing_365_candles();
                 state.yoy_candles = candles;
@@ -576,8 +570,7 @@ fn update(state: &mut Halvora, message: Message) {
             // Update today's candle close/high/low in the cached YOY data.
             let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs() as i64)
-                .unwrap_or(0);
+                .map_or(0, |d| d.as_secs() as i64);
             let today_midnight = now - (now % 86_400);
             if let Some(last) = state.yoy_candles.last_mut()
                 && last.timestamp == today_midnight
@@ -885,7 +878,7 @@ fn view(state: &Halvora) -> Element<'_, Message> {
 /// Layers a dark, semi-transparent overlay on top of `content` to produce
 /// a smooth fade-in. `opacity` is the overlay alpha (1.0 opaque → 0.0
 /// transparent).
-fn fade_overlay<'a>(content: Element<'a, Message>, opacity: f32) -> Element<'a, Message> {
+fn fade_overlay(content: Element<'_, Message>, opacity: f32) -> Element<'_, Message> {
     let overlay = container(iced::widget::Space::new())
         .width(Length::Fill)
         .height(Length::Fill)

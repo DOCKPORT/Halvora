@@ -14,7 +14,7 @@ pub fn y_ticks(min: f64, max: f64) -> Vec<Tick> {
     if range <= 0.0 {
         return vec![Tick {
             position: min,
-            label: format!("${:.0}", min),
+            label: format!("${min:.0}"),
         }];
     }
 
@@ -60,12 +60,12 @@ fn format_price(price: f64) -> String {
     } else if price >= 1_000.0 {
         format!("${:.0}K", price / 1_000.0)
     } else {
-        format!("${:.0}", price)
+        format!("${price:.0}")
     }
 }
 
 /// Generate X-axis (date) tick marks.
-/// Produces one tick per month in [min_ts, max_ts].
+/// Produces one tick per month in [`min_ts`, `max_ts`].
 pub fn x_ticks(min_ts: f64, max_ts: f64) -> Vec<Tick> {
     if min_ts >= max_ts || max_ts - min_ts < 86_400.0 {
         return Vec::new();
@@ -86,16 +86,13 @@ pub fn x_ticks(min_ts: f64, max_ts: f64) -> Vec<Tick> {
 
     loop {
         // Build the first day of this month at 00:00:00 UTC
-        let tick_str = format!("{}-{:02}-01T00:00:00", year, month);
-        let tick_naive = match NaiveDateTime::parse_from_str(&tick_str, "%Y-%m-%dT%H:%M:%S") {
-            Ok(dt) => dt,
-            Err(_) => {
-                advance_month(&mut year, &mut month);
-                if past_end(year, month, &max_dt) {
-                    break;
-                }
-                continue;
+        let tick_str = format!("{year}-{month:02}-01T00:00:00");
+        let tick_naive = if let Ok(dt) = NaiveDateTime::parse_from_str(&tick_str, "%Y-%m-%dT%H:%M:%S") { dt } else {
+            advance_month(&mut year, &mut month);
+            if past_end(year, month, &max_dt) {
+                break;
             }
+            continue;
         };
         let tick_dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(tick_naive, Utc);
 
@@ -146,7 +143,7 @@ struct QuarterBoundary {
 }
 
 /// Enumerate the quarter-start boundaries (Jan 1, Apr 1, Jul 1, Oct 1)
-/// within [min_ts, max_ts].
+/// within [`min_ts`, `max_ts`].
 fn quarter_boundaries(min_ts: f64, max_ts: f64) -> Vec<QuarterBoundary> {
     if min_ts >= max_ts {
         return Vec::new();
@@ -178,7 +175,7 @@ fn quarter_boundaries(min_ts: f64, max_ts: f64) -> Vec<QuarterBoundary> {
             break;
         }
 
-        let tick_str = format!("{:04}-{:02}-01T00:00:00", year, qm);
+        let tick_str = format!("{year:04}-{qm:02}-01T00:00:00");
         if let Ok(tick_naive) = NaiveDateTime::parse_from_str(&tick_str, "%Y-%m-%dT%H:%M:%S") {
             let tick_dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(tick_naive, Utc);
             if tick_dt >= min_dt && tick_dt <= max_dt {

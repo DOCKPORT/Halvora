@@ -29,7 +29,7 @@ struct BlockJson {
 const FETCH_COOLDOWN_SECS: u64 = 600;
 
 /// Fetch halving blocks and the current tip from mempool.space,
-/// then store them in the SQLite database at `~/.local/share/Halvora/Mempool/blocks.db`.
+/// then store them in the `SQLite` database at `~/.local/share/Halvora/Mempool/blocks.db`.
 ///
 /// Call this once at application startup.
 pub fn fetch_and_store() {
@@ -38,8 +38,7 @@ pub fn fetch_and_store() {
     // Check cooldown before making any network request.
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
+        .map_or(0, |d| d.as_secs());
 
     if let Ok(conn) = Connection::open(&db_path) {
         let stored: Option<(i64, i64)> = conn
@@ -72,7 +71,7 @@ pub fn fetch_and_store() {
     let conn = match Connection::open(&db_path) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("[mempool] failed to open database {:?}: {}", db_path, e);
+            eprintln!("[mempool] failed to open database {db_path:?}: {e}");
             return;
         }
     };
@@ -91,7 +90,7 @@ pub fn fetch_and_store() {
             difficulty REAL
         );",
     ) {
-        eprintln!("[mempool] failed to create tables: {}", e);
+        eprintln!("[mempool] failed to create tables: {e}");
         return;
     }
 
@@ -129,7 +128,7 @@ pub fn fetch_and_store() {
             rusqlite::params![tip.height, tip.timestamp as i64, subsidy, tip.difficulty],
         )
     {
-        eprintln!("[mempool] failed to insert current_tip: {}", e);
+        eprintln!("[mempool] failed to insert current_tip: {e}");
         return;
     }
 
@@ -142,21 +141,21 @@ pub fn fetch_and_store() {
         let has_ts: bool = conn
             .query_row(
                 "SELECT timestamp IS NOT NULL FROM halve_blocks WHERE halving_number = ?1",
-                [n as i64],
+                [i64::from(n)],
                 |row| row.get(0),
             )
             .unwrap_or(false);
         if !has_ts && let Some((_, ts)) = fetch_single_block(height) {
-            upsert_halve_block(&conn, n as i64, height, Some(ts as i64));
+            upsert_halve_block(&conn, i64::from(n), height, Some(ts as i64));
         }
     }
 
-    eprintln!("[mempool] sync complete – tip at height {}", tip.height,);
+    eprintln!("[mempool] sync complete – tip at height {}", tip.height);
 }
 
 // ── Internal helpers ────────────────────────────────────────────────────
 
-/// Return the path to the SQLite database.
+/// Return the path to the `SQLite` database.
 fn db_path() -> PathBuf {
     let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
     base.join("Halvora").join("Mempool").join("blocks.db")
@@ -173,19 +172,19 @@ fn fetch_latest_block() -> Option<BlockJson> {
 /// Fetch a single block by height using the block-height → hash → block chain.
 fn fetch_single_block(height: u32) -> Option<(u32, u64)> {
     // Step 1: get the block hash for this height.
-    let hash_url = format!("https://mempool.space/api/block-height/{}", height);
+    let hash_url = format!("https://mempool.space/api/block-height/{height}");
     let hash = reqwest::blocking::get(&hash_url).ok()?.text().ok()?;
     let hash = hash.trim().to_string(); // remove trailing newline
 
     // Step 2: get the full block JSON.
-    let block_url = format!("https://mempool.space/api/block/{}", hash);
+    let block_url = format!("https://mempool.space/api/block/{hash}");
     let text = reqwest::blocking::get(&block_url).ok()?.text().ok()?;
     let block: BlockJson = serde_json::from_str(&text).ok()?;
 
     Some((block.height, block.timestamp))
 }
 
-/// Insert or replace a row in the halve_blocks table.
+/// Insert or replace a row in the `halve_blocks` table.
 /// `timestamp` can be `None` for blocks that have not been mined yet.
 fn upsert_halve_block(conn: &Connection, halving_number: i64, height: u32, timestamp: Option<i64>) {
     if let Err(e) = conn.execute(
@@ -193,6 +192,6 @@ fn upsert_halve_block(conn: &Connection, halving_number: i64, height: u32, times
          VALUES (?1, ?2, ?3, (SELECT subsidy FROM halve_blocks WHERE halving_number = ?1))",
         rusqlite::params![halving_number, height, timestamp],
     ) {
-        eprintln!("[mempool] failed to upsert halving block {}: {}", height, e);
+        eprintln!("[mempool] failed to upsert halving block {height}: {e}");
     }
 }

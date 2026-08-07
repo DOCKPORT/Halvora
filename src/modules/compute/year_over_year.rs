@@ -21,7 +21,7 @@ pub fn trailing_365_candles() -> Vec<Candle> {
     let conn = match Connection::open(&db_path) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("[year_over_year] failed to open database: {}", e);
+            eprintln!("[year_over_year] failed to open database: {e}");
             return Vec::new();
         }
     };
@@ -34,7 +34,7 @@ pub fn trailing_365_candles() -> Vec<Candle> {
     ) {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("[year_over_year] failed to prepare query: {}", e);
+            eprintln!("[year_over_year] failed to prepare query: {e}");
             return Vec::new();
         }
     };
@@ -49,9 +49,9 @@ pub fn trailing_365_candles() -> Vec<Candle> {
             volume: row.get(5)?,
         })
     }) {
-        Ok(rows) => rows.filter_map(|r| r.ok()).collect(),
+        Ok(rows) => rows.filter_map(std::result::Result::ok).collect(),
         Err(e) => {
-            eprintln!("[year_over_year] failed to query candles: {}", e);
+            eprintln!("[year_over_year] failed to query candles: {e}");
             return Vec::new();
         }
     };

@@ -13,7 +13,7 @@ fn blocks_remaining_until_next_halving(current_tip_height: u32) -> Option<u64> {
     let next_height = (1..=HALVING_COUNT)
         .map(|n| n * HALVING_INTERVAL)
         .find(|&h| h > current_tip_height)?;
-    Some((next_height - current_tip_height) as u64)
+    Some(u64::from(next_height - current_tip_height))
 }
 
 /// Format a number with thousands commas.
@@ -35,7 +35,7 @@ fn format_eta(minutes: u64) -> String {
     let years = total_days / 365;
     let months = (total_days % 365) / 30;
     let days = (total_days % 365) % 30;
-    format!("~{}y {}m {}d", years, months, days)
+    format!("~{years}y {months}m {days}d")
 }
 
 /// Compute the number of blocks remaining until the next halving.
@@ -65,5 +65,5 @@ pub fn next_halving_eta(current_tip_height: u32) -> String {
 pub fn halving_eta(current_tip_height: u32, halving_number: u32) -> String {
     let height = halving_number.saturating_mul(HALVING_INTERVAL);
     let blocks_remaining = height.saturating_sub(current_tip_height);
-    format_eta(blocks_remaining as u64 * MINUTES_PER_BLOCK)
+    format_eta(u64::from(blocks_remaining) * MINUTES_PER_BLOCK)
 }

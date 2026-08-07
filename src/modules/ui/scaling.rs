@@ -32,7 +32,7 @@ fn detect_screen_size() -> Size {
             .output()
         {
             let stdout = String::from_utf8_lossy(&output.stdout);
-            if let Some(dim) = stdout.split("=").nth(1) {
+            if let Some(dim) = stdout.split('=').nth(1) {
                 let mut parts = dim.trim().split(',');
                 let _x = parts.next();
                 let _y = parts.next();
@@ -128,7 +128,7 @@ impl Scaling {
 
     /// Scales a pixel value from the reference resolution to the current size.
     ///
-    /// Usage: `sp(400)` returns 400 × scale_factor.
+    /// Usage: `sp(400)` returns 400 × `scale_factor`.
     pub fn sp(&self, value: f32) -> f32 {
         value * self.factor()
     }

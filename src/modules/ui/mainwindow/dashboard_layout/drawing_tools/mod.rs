@@ -11,11 +11,11 @@ use iced::{Color, Element, Point, Rectangle};
 
 // ── Tool toggle buttons ─────────────────────────────────────────────────
 
-fn tool_button<'a>(
-    label: &'a str,
+fn tool_button(
+    label: &str,
     active: bool,
     on_press: crate::modules::ui::mainwindow::application::Message,
-) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
+) -> Element<'_, crate::modules::ui::mainwindow::application::Message> {
     let bg = if active {
         Color::from_rgba(0.25, 0.5, 1.0, 0.5)
     } else {
@@ -72,12 +72,12 @@ fn data_y_to_screen(price: f64, y_min: f64, y_max: f64, plot: &Rectangle) -> f32
 
 fn screen_x_to_data(screen_x: f32, x_min: f64, x_max: f64, plot: &Rectangle) -> f64 {
     let t = (screen_x - plot.x) / plot.width;
-    x_min + (t as f64) * (x_max - x_min)
+    x_min + f64::from(t) * (x_max - x_min)
 }
 
 fn screen_y_to_data(screen_y: f32, y_min: f64, y_max: f64, plot: &Rectangle) -> f64 {
     let t = 1.0 - (screen_y - plot.y) / plot.height;
-    y_min + (t as f64) * (y_max - y_min)
+    y_min + f64::from(t) * (y_max - y_min)
 }
 
 // ── AVWAP drawing ────────────────────────────────────────────────────────
@@ -162,8 +162,8 @@ pub fn hit_test_anchored_vwaps(
         let mut prev_pt: Option<(f64, f64)> = None;
         for (c, v) in sub_candles.iter().zip(vwaps.iter()) {
             if let Some(vwap) = v {
-                let sx = data_x_to_screen(c.timestamp as f64, x_min, x_max, plot) as f64;
-                let sy = data_y_to_screen(*vwap, y_min, y_max, plot) as f64;
+                let sx = f64::from(data_x_to_screen(c.timestamp as f64, x_min, x_max, plot));
+                let sy = f64::from(data_y_to_screen(*vwap, y_min, y_max, plot));
 
                 if let Some((px, py)) = prev_pt {
                     let dist = point_to_segment_distance(cursor_x, cursor_y, px, py, sx, sy);
@@ -297,9 +297,9 @@ fn draw_one_range_box(
         0.0
     };
     let label = if pct >= 0.0 {
-        format!("+{:.2}%", pct)
+        format!("+{pct:.2}%")
     } else {
-        format!("{:.2}%", pct)
+        format!("{pct:.2}%")
     };
     let label_color = if pct >= 0.0 { RANGE_GREEN } else { RANGE_RED };
 
@@ -311,7 +311,7 @@ fn draw_one_range_box(
 
     // Position label at the top inside the box
     let label_y = top + sp(8.0);
-    let center_x = (left + right) / 2.0;
+    let center_x = f32::midpoint(left, right);
 
     // Pill background behind the label for visibility. The width is sized to
     // the label itself so it is never clipped, even when the range box is
@@ -520,8 +520,8 @@ pub fn handle_right_click_delete(
 
     // Otherwise hit-test the anchored VWAP lines.
     if let Some(list_idx) = hit_test_anchored_vwaps(
-        cursor_pt.x as f64,
-        cursor_pt.y as f64,
+        f64::from(cursor_pt.x),
+        f64::from(cursor_pt.y),
         &plot,
         x_min,
         x_max,

@@ -6,7 +6,7 @@
 /// VWAP = Σ(close_i × volume_i) / Σ(volume_i)
 /// ```
 ///
-/// All functions operate on a slice of `(close, volume)` tuples.  
+/// All functions operate on a slice of `(close, volume)` tuples.\
 /// Volumes must be non-negative; entries with zero volume contribute nothing
 /// to the numerator but are included in the denominator sum, which is
 /// consistent with standard VWAP treatment.

@@ -50,7 +50,7 @@ fn format_btc(whole_btc: u64, cents: u64) -> String {
         result.push(c);
     }
     result.push('.');
-    result.push_str(&format!("{:02}", cents));
+    result.push_str(&format!("{cents:02}"));
     result
 }
 
@@ -58,7 +58,7 @@ fn format_btc(whole_btc: u64, cents: u64) -> String {
 ///
 /// Returns a string with thousands separators and 2 decimals, e.g. `"19,542,150.00"`.
 pub fn coins_issued(current_tip_height: u32) -> String {
-    let height = current_tip_height as u64;
+    let height = u64::from(current_tip_height);
     if height == 0 {
         return "0.00".to_string();
     }
@@ -76,7 +76,7 @@ pub fn coins_issued(current_tip_height: u32) -> String {
 ///
 /// Returns a string like `"95.52%"`.
 pub fn percentage_issued(current_tip_height: u32) -> String {
-    let height = current_tip_height as u64;
+    let height = u64::from(current_tip_height);
     if height == 0 {
         return "0.00%".to_string();
     }
@@ -89,14 +89,14 @@ pub fn percentage_issued(current_tip_height: u32) -> String {
     let mined_btc = whole_btc as f64 + (cents as f64 / 100.0);
     let pct = (mined_btc / MAX_SUPPLY_BTC as f64) * 100.0;
 
-    format!("{:.2}%", pct)
+    format!("{pct:.2}%")
 }
 
 /// Compute the remaining BTC to be issued until the 21M hard cap.
 ///
 /// Returns a string with thousands separators and 2 decimals, e.g. `"940,846.88"`.
 pub fn remaining_issuance(current_tip_height: u32) -> String {
-    let height = current_tip_height as u64;
+    let height = u64::from(current_tip_height);
     if height == 0 {
         return "21,000,000.00".to_string();
     }

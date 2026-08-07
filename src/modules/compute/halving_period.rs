@@ -72,7 +72,7 @@ fn query_candles(conn: &Connection, start: i64, end: i64) -> Vec<Candle> {
     });
 
     match rows {
-        Ok(rows) => rows.filter_map(|r| r.ok()).collect(),
+        Ok(rows) => rows.filter_map(std::result::Result::ok).collect(),
         Err(_) => Vec::new(),
     }
 }
@@ -106,8 +106,7 @@ fn candles_db_path() -> PathBuf {
 fn now_ts() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
+        .map_or(0, |d| d.as_secs() as i64)
 }
 
 /// Public: resolve the inclusive candle-day window for a halving period.
@@ -148,7 +147,7 @@ fn fmt_subsidy_btc(sat: i64) -> String {
     if s.ends_with('.') {
         s.pop();
     }
-    format!("{} BTC", s)
+    format!("{s} BTC")
 }
 
 /// Public: format a subsidy in satoshis as a BTC string for the live period.

@@ -42,9 +42,9 @@ pub fn load_app_icon() -> Option<iced::window::Icon> {
             rgba.extend_from_slice(&[0, 0, 0, 0]);
         } else {
             rgba.extend_from_slice(&[
-                (r as u16 * 255 / a as u16) as u8,
-                (g as u16 * 255 / a as u16) as u8,
-                (b as u16 * 255 / a as u16) as u8,
+                (u16::from(r) * 255 / u16::from(a)) as u8,
+                (u16::from(g) * 255 / u16::from(a)) as u8,
+                (u16::from(b) * 255 / u16::from(a)) as u8,
                 a,
             ]);
         }

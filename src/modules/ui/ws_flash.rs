@@ -92,7 +92,7 @@ pub fn diff_index_between(prev: f64, next: f64) -> Option<usize> {
             return Some(i);
         }
     }
-    if a.len() != b.len() { Some(n) } else { None }
+    if a.len() == b.len() { None } else { Some(n) }
 }
 
 /// Format a price with thousands separators and two decimals, e.g.
@@ -112,5 +112,5 @@ pub fn format_usd(p: f64) -> String {
     let cents = (p * 100.0).round() as i64;
     let whole = fmt_commas((cents / 100) as u64);
     let frac = (cents % 100).abs();
-    format!("{}.{:02}", whole, frac)
+    format!("{whole}.{frac:02}")
 }

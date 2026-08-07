@@ -149,7 +149,7 @@ impl<Message> canvas::Program<Message> for VolumeChartProgram<'_> {
         {
             let vol = candles[idx].volume;
             frame.fill_text(canvas::Text {
-                content: format!("VOL: {:.2}", vol),
+                content: format!("VOL: {vol:.2}"),
                 position: Point::new(plot.x + 4.0, plot.y + 4.0),
                 color: Color::WHITE,
                 size: sp(14.0).into(),

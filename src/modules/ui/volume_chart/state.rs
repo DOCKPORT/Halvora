@@ -1,7 +1,7 @@
 use crate::modules::compute::year_over_year::Candle;
 
 /// Compute the visible X range (earliest to latest timestamp).
-/// Matches line_chart::x_bounds() for alignment.
+/// Matches `line_chart::x_bounds()` for alignment.
 pub fn x_bounds(candles: &[Candle]) -> (f64, f64) {
     if candles.is_empty() {
         return (0.0, 1.0);
@@ -15,7 +15,7 @@ pub fn x_bounds(candles: &[Candle]) -> (f64, f64) {
     }
 }
 
-/// Compute the Y range for volume: [0, max_volume * 1.15].
+/// Compute the Y range for volume: [0, `max_volume` * 1.15].
 pub fn y_bounds(candles: &[Candle]) -> (f64, f64) {
     if candles.is_empty() {
         return (0.0, 1.0);

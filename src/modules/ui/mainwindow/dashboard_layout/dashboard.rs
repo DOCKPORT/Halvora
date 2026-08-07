@@ -207,25 +207,23 @@ pub fn view<'a>(
             result
         }
         let block_range_text = selected_halving
-            .and_then(crate::modules::compute::halving_period::halving_block_range)
-            .map(|(start, end)| format!("{} \u{2192} {}", fmt_height(start), fmt_height(end)))
-            .unwrap_or_else(|| "\u{2014}".to_string());
+            .and_then(crate::modules::compute::halving_period::halving_block_range).map_or_else(|| "\u{2014}".to_string(), |(start, end)| format!("{} \u{2192} {}", fmt_height(start), fmt_height(end)));
 
         let info_column: Element<'a, crate::modules::ui::mainwindow::application::Message> =
             column![
-                text(format!("{} HALVING", heading,))
+                text(format!("{heading} HALVING"))
                     .size(sp(22.0))
                     .font(iced::Font::with_name("Geist Mono"))
                     .color(theme::HALVING_BUTTON_TEXT),
-                text(format!("ETA \u{2014} {}", eta_text))
+                text(format!("ETA \u{2014} {eta_text}"))
                     .size(sp(18.0))
                     .font(iced::Font::with_name("Geist Mono"))
                     .color(theme::HALVING_BUTTON_TEXT),
-                text(format!("SUBSIDY \u{2014} {}", subsidy_text))
+                text(format!("SUBSIDY \u{2014} {subsidy_text}"))
                     .size(sp(18.0))
                     .font(iced::Font::with_name("Geist Mono"))
                     .color(theme::HALVING_BUTTON_TEXT),
-                text(format!("BLOCK RANGE \u{2014} {}", block_range_text))
+                text(format!("BLOCK RANGE \u{2014} {block_range_text}"))
                     .size(sp(18.0))
                     .font(iced::Font::with_name("Geist Mono"))
                     .color(theme::HALVING_BUTTON_TEXT),

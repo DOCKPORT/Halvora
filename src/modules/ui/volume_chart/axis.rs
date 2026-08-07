@@ -31,6 +31,6 @@ fn fmt_volume(v: f64) -> String {
     } else if v >= 1_000.0 {
         format!("{:.0}K", v / 1_000.0)
     } else {
-        format!("{:.0}", v)
+        format!("{v:.0}")
     }
 }

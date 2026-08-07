@@ -224,7 +224,7 @@ fn halving_button<'a>(
     let is_selected = selected_halving == Some(num);
 
     button(
-        iced::widget::text(format!("H-{}", num))
+        iced::widget::text(format!("H-{num}"))
             .size(sp(16.0))
             .width(Length::Shrink)
             .center()
