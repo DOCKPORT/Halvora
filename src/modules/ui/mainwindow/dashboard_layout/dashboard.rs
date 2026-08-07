@@ -207,7 +207,11 @@ pub fn view<'a>(
             result
         }
         let block_range_text = selected_halving
-            .and_then(crate::modules::compute::halving_period::halving_block_range).map_or_else(|| "\u{2014}".to_string(), |(start, end)| format!("{} \u{2192} {}", fmt_height(start), fmt_height(end)));
+            .and_then(crate::modules::compute::halving_period::halving_block_range)
+            .map_or_else(
+                || "\u{2014}".to_string(),
+                |(start, end)| format!("{} \u{2192} {}", fmt_height(start), fmt_height(end)),
+            );
 
         let info_column: Element<'a, crate::modules::ui::mainwindow::application::Message> =
             column![

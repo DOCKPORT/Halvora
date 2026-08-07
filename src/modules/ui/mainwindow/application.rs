@@ -385,7 +385,9 @@ fn update(state: &mut Halvora, message: Message) {
             }
             // Set the start time on the first tick, then measure progress
             // relative to it.
-            let elapsed = if let Some(t) = s.start_time() { t.elapsed().as_secs_f32() } else {
+            let elapsed = if let Some(t) = s.start_time() {
+                t.elapsed().as_secs_f32()
+            } else {
                 s.mark_started(Instant::now());
                 0.0
             };

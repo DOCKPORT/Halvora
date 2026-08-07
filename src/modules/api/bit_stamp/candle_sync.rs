@@ -126,9 +126,7 @@ pub fn fetch_and_store() {
         return;
     }
 
-    eprintln!(
-        "[bitstamp] gap of {gap_days} day(s) to fill (with 1-candle buffer)"
-    );
+    eprintln!("[bitstamp] gap of {gap_days} day(s) to fill (with 1-candle buffer)");
 
     // Paginate backwards from today_midnight, using an appropriate limit per page.
     let mut total_inserted = 0u64;
@@ -139,9 +137,7 @@ pub fn fetch_and_store() {
         let limit = remaining.min(PAGE_SIZE);
         let batch_start = cursor - (limit - 1) * 86_400;
 
-        eprintln!(
-            "[bitstamp] fetching {limit} candles starting at {batch_start}"
-        );
+        eprintln!("[bitstamp] fetching {limit} candles starting at {batch_start}");
 
         let Some(candles) = fetch_page(batch_start, limit) else {
             eprintln!("[bitstamp] API error at start={batch_start}, aborting");
@@ -176,9 +172,7 @@ pub fn fetch_and_store() {
         std::thread::sleep(Duration::from_millis(REQUEST_DELAY_MS));
     }
 
-    eprintln!(
-        "[bitstamp] sync complete – {total_inserted} new candles stored"
-    );
+    eprintln!("[bitstamp] sync complete – {total_inserted} new candles stored");
 }
 
 // ── Internal helpers ────────────────────────────────────────────────────
@@ -281,9 +275,7 @@ pub fn update_today_volume() {
     let conn = match Connection::open(db_path()) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!(
-                "[bitstamp] failed to open database for volume update: {e}"
-            );
+            eprintln!("[bitstamp] failed to open database for volume update: {e}");
             return;
         }
     };

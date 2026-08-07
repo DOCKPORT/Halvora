@@ -109,8 +109,10 @@ pub fn view<'a>(
                 let full = format!("${number}");
                 match spot_flash.and_then(crate::modules::ui::ws_flash::WsFlash::diff_index) {
                     Some(i) if i < number.len() => {
-                        let color = spot_flash
-                            .map_or(theme::HALVING_BUTTON_TEXT, crate::modules::ui::ws_flash::WsFlash::color);
+                        let color = spot_flash.map_or(
+                            theme::HALVING_BUTTON_TEXT,
+                            crate::modules::ui::ws_flash::WsFlash::color,
+                        );
                         let prefix = format!("${}", &number[..i]);
                         let suffix = number[i..].to_string();
                         row![

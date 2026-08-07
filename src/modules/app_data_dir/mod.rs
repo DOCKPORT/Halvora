@@ -19,9 +19,7 @@ pub fn ensure() -> Option<PathBuf> {
 
     for dir in &dirs {
         if let Err(e) = fs::create_dir_all(dir) {
-            eprintln!(
-                "[halvora] warning: could not create directory {dir:?}: {e}"
-            );
+            eprintln!("[halvora] warning: could not create directory {dir:?}: {e}");
             return None;
         }
     }

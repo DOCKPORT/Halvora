@@ -87,13 +87,16 @@ pub fn x_ticks(min_ts: f64, max_ts: f64) -> Vec<Tick> {
     loop {
         // Build the first day of this month at 00:00:00 UTC
         let tick_str = format!("{year}-{month:02}-01T00:00:00");
-        let tick_naive = if let Ok(dt) = NaiveDateTime::parse_from_str(&tick_str, "%Y-%m-%dT%H:%M:%S") { dt } else {
-            advance_month(&mut year, &mut month);
-            if past_end(year, month, &max_dt) {
-                break;
-            }
-            continue;
-        };
+        let tick_naive =
+            if let Ok(dt) = NaiveDateTime::parse_from_str(&tick_str, "%Y-%m-%dT%H:%M:%S") {
+                dt
+            } else {
+                advance_month(&mut year, &mut month);
+                if past_end(year, month, &max_dt) {
+                    break;
+                }
+                continue;
+            };
         let tick_dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(tick_naive, Utc);
 
         if tick_dt > max_dt {
