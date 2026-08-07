@@ -166,9 +166,9 @@ fn quarter_boundaries(min_ts: f64, max_ts: f64) -> Vec<QuarterBoundary> {
     // Walk through all quarter boundaries in the range
     let mut year = min_dt.year();
     let mut mi = match min_dt.month() {
-        1 | 2 | 3 => 0,
-        4 | 5 | 6 => 1,
-        7 | 8 | 9 => 2,
+        1..=3 => 0,
+        4..=6 => 1,
+        7..=9 => 2,
         _ => 3,
     };
 

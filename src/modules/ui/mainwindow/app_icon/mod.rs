@@ -19,7 +19,7 @@ pub fn load_app_icon() -> Option<iced::window::Icon> {
 
     let mut opt = resvg::usvg::Options::default();
     opt.fontdb_mut().load_system_fonts();
-    let tree = resvg::usvg::Tree::from_data(&svg_data, &opt).ok()?;
+    let tree = resvg::usvg::Tree::from_data(svg_data, &opt).ok()?;
 
     let src_size = tree.size();
     let (src_w, src_h) = (src_size.width(), src_size.height());

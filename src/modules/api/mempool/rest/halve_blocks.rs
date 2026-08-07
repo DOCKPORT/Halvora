@@ -122,8 +122,8 @@ pub fn fetch_and_store() {
             rusqlite::params![tip.height, tip.timestamp as i64, subsidy, tip.difficulty],
         )
         .unwrap_or(0);
-    if updated == 0 {
-        if let Err(e) = conn.execute(
+    if updated == 0
+        && let Err(e) = conn.execute(
             "INSERT INTO current_tip (height, timestamp, subsidy, difficulty)
              VALUES (?1, ?2, ?3, ?4)",
             rusqlite::params![tip.height, tip.timestamp as i64, subsidy, tip.difficulty],
@@ -131,7 +131,6 @@ pub fn fetch_and_store() {
             eprintln!("[mempool] failed to insert current_tip: {}", e);
             return;
         }
-    }
 
     // Fill timestamps for any halving that has been reached but still has NULL.
     for n in 1..=HALVING_COUNT {
@@ -146,11 +145,10 @@ pub fn fetch_and_store() {
                 |row| row.get(0),
             )
             .unwrap_or(false);
-        if !has_ts {
-            if let Some((_, ts)) = fetch_single_block(height) {
+        if !has_ts
+            && let Some((_, ts)) = fetch_single_block(height) {
                 upsert_halve_block(&conn, n as i64, height, Some(ts as i64));
             }
-        }
     }
 
     eprintln!(

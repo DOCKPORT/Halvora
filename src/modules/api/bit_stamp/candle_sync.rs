@@ -290,7 +290,7 @@ pub fn update_today_volume() {
         return;
     };
 
-    let conn = match Connection::open(&db_path()) {
+    let conn = match Connection::open(db_path()) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("[bitstamp] failed to open database for volume update: {}", e);

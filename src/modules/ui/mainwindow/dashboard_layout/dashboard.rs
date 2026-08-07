@@ -10,7 +10,7 @@ use super::metric_labels;
 
 fn ordinal_suffix(n: u32) -> &'static str {
     match n % 100 {
-        11 | 12 | 13 => "TH",
+        11..=13 => "TH",
         _ => match n % 10 {
             1 => "ST",
             2 => "ND",
@@ -148,7 +148,7 @@ pub fn view<'a>(
                         let s = h.to_string();
                         let mut result = String::with_capacity(s.len() + s.len() / 3);
                         for (i, c) in s.chars().enumerate() {
-                            if i > 0 && (s.len() - i) % 3 == 0 {
+                            if i > 0 && (s.len() - i).is_multiple_of(3) {
                                 result.push(',');
                             }
                             result.push(c);
@@ -192,7 +192,7 @@ pub fn view<'a>(
                 let s = h.to_string();
                 let mut result = String::with_capacity(s.len() + s.len() / 3);
                 for (i, c) in s.chars().enumerate() {
-                    if i > 0 && (s.len() - i) % 3 == 0 {
+                    if i > 0 && (s.len() - i).is_multiple_of(3) {
                         result.push(',');
                     }
                     result.push(c);
@@ -281,7 +281,7 @@ pub fn view<'a>(
         // Null halving: no volume data yet, so show only the cross-hatch
         // placeholder in the splash's style (below the line-chart text).
         let crosshatch: Element<'a, crate::modules::ui::mainwindow::application::Message> =
-            crate::modules::ui::splash_screen::crosshatch_background::view_with_padding(1.0, 20.0).into();
+            crate::modules::ui::splash_screen::crosshatch_background::view_with_padding(1.0, 20.0);
 
         container(crosshatch)
             .width(Length::Fill)

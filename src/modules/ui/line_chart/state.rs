@@ -4,18 +4,15 @@ use crate::modules::ui::ws_flash::WsFlash;
 
 /// Which drawing tool is currently active on the chart.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum DrawingMode {
     /// Anchored VWAP lines — left-click to anchor, right-click to remove.
+    #[default]
     AVWAP,
     /// Range selection tool (future).
     Range,
 }
 
-impl Default for DrawingMode {
-    fn default() -> Self {
-        Self::AVWAP
-    }
-}
 
 /// A completed range annotation on the chart.
 #[derive(Debug, Clone, Copy)]

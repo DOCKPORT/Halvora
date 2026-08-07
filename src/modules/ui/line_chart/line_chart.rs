@@ -243,11 +243,8 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
             }
             // Also handle CursorMoved for live preview update
             if let canvas::Event::Mouse(mouse::Event::CursorMoved { .. }) = event {
-                match drawing_tools::handle_range_event(event, bounds, cursor, self.data) {
-                    RangeActionResult::Redraw => {
-                        // Still need to update crosshair too, so fall through
-                    }
-                    _ => {}
+                if drawing_tools::handle_range_event(event, bounds, cursor, self.data) == RangeActionResult::Redraw {
+                    // Still need to update crosshair too, so fall through
                 }
             }
         }
@@ -712,7 +709,7 @@ fn draw_crosshair(
         let mut result = String::with_capacity(s.len() + s.len() / 3 + 4);
         result.push('$');
         for (i, c) in s.chars().enumerate() {
-            if i > 0 && (s.len() - i) % 3 == 0 {
+            if i > 0 && (s.len() - i).is_multiple_of(3) {
                 result.push(',');
             }
             result.push(c);
@@ -728,7 +725,7 @@ fn draw_crosshair(
         let mut result = String::with_capacity(s.len() + s.len() / 3 + 1);
         result.push('$');
         for (i, c) in s.chars().enumerate() {
-            if i > 0 && (s.len() - i) % 3 == 0 {
+            if i > 0 && (s.len() - i).is_multiple_of(3) {
                 result.push(',');
             }
             result.push(c);

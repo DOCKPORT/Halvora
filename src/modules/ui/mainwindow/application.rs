@@ -263,15 +263,14 @@ impl Halvora {
     fn load_tip_height() -> u32 {
         let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
         let db_path = base.join("Halvora").join("Mempool").join("blocks.db");
-        if let Ok(conn) = Connection::open(&db_path) {
-            if let Ok(height) = conn.query_row(
+        if let Ok(conn) = Connection::open(&db_path)
+            && let Ok(height) = conn.query_row(
                 "SELECT height FROM current_tip LIMIT 1",
                 [],
                 |row| row.get(0),
             ) {
                 return height;
             }
-        }
         0
     }
 
@@ -279,15 +278,14 @@ impl Halvora {
     fn load_current_subsidy() -> i64 {
         let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
         let db_path = base.join("Halvora").join("Mempool").join("blocks.db");
-        if let Ok(conn) = Connection::open(&db_path) {
-            if let Ok(subsidy) = conn.query_row(
+        if let Ok(conn) = Connection::open(&db_path)
+            && let Ok(subsidy) = conn.query_row(
                 "SELECT subsidy FROM current_tip LIMIT 1",
                 [],
                 |row| row.get(0),
             ) {
                 return subsidy;
             }
-        }
         0
     }
 
@@ -295,15 +293,14 @@ impl Halvora {
     fn load_mining_difficulty() -> f64 {
         let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
         let db_path = base.join("Halvora").join("Mempool").join("blocks.db");
-        if let Ok(conn) = Connection::open(&db_path) {
-            if let Ok(difficulty) = conn.query_row(
+        if let Ok(conn) = Connection::open(&db_path)
+            && let Ok(difficulty) = conn.query_row(
                 "SELECT difficulty FROM current_tip LIMIT 1",
                 [],
                 |row| row.get(0),
             ) {
                 return difficulty;
             }
-        }
         0.0
     }
 }
@@ -460,8 +457,8 @@ fn update(state: &mut Halvora, message: Message) {
                     .map(|d| d.as_secs() as i64)
                     .unwrap_or(0);
                 let today_midnight = now - (now % 86_400);
-                if let Some(last) = candles.last_mut() {
-                    if last.timestamp == today_midnight {
+                if let Some(last) = candles.last_mut()
+                    && last.timestamp == today_midnight {
                         last.close = price;
                         if price > last.high {
                             last.high = price;
@@ -470,7 +467,6 @@ fn update(state: &mut Halvora, message: Message) {
                             last.low = price;
                         }
                     }
-                }
             }
             state.line_chart_state.set_candles(candles);
             state.metrics = crate::modules::compute::metrics::compute(
@@ -555,12 +551,11 @@ fn update(state: &mut Halvora, message: Message) {
         }
         Message::WsFlashTick => {
             // Expire the websocket flash once its 1-second window has elapsed.
-            if let Some(flash) = &state.ws_flash {
-                if !flash.is_active(std::time::Instant::now()) {
+            if let Some(flash) = &state.ws_flash
+                && !flash.is_active(std::time::Instant::now()) {
                     state.ws_flash = None;
                     state.line_chart_state.ws_flash.set(None);
                 }
-            }
         }
         Message::LivePrice(price) => {
             let flash = crate::modules::ui::ws_flash::WsFlash::from_tick(state.live_price, price);
@@ -577,13 +572,12 @@ fn update(state: &mut Halvora, message: Message) {
                 .map(|d| d.as_secs() as i64)
                 .unwrap_or(0);
             let today_midnight = now - (now % 86_400);
-            if let Some(last) = state.yoy_candles.last_mut() {
-                if last.timestamp == today_midnight {
+            if let Some(last) = state.yoy_candles.last_mut()
+                && last.timestamp == today_midnight {
                     if price > last.high { last.high = price; }
                     if price < last.low  { last.low = price; }
                     last.close = price;
                 }
-            }
 
             // Update the active page's chart state. This covers both YOY and
             // the live halving period (which ends at today). Completed halving
@@ -591,13 +585,12 @@ fn update(state: &mut Halvora, message: Message) {
             if state.yoy_selected {
                 state.line_chart_state.set_candles(state.yoy_candles.clone());
             }
-            if let Some(last) = state.line_chart_state.candles.last_mut() {
-                if last.timestamp == today_midnight {
+            if let Some(last) = state.line_chart_state.candles.last_mut()
+                && last.timestamp == today_midnight {
                     if price > last.high { last.high = price; }
                     if price < last.low  { last.low = price; }
                     last.close = price;
                 }
-            }
             state.metrics = crate::modules::compute::metrics::compute(
                 &state.line_chart_state.candles,
                 Halvora::metric_current_price(state),
@@ -657,13 +650,12 @@ fn update(state: &mut Halvora, message: Message) {
         }
         Message::ResizePoll => {
             // Apply the pending resize once the user pauses the drag.
-            if let Some((size, last)) = state.pending_resize {
-                if last.elapsed() >= RESIZE_SETTLE_MS {
+            if let Some((size, last)) = state.pending_resize
+                && last.elapsed() >= RESIZE_SETTLE_MS {
                     crate::modules::ui::scaling::Scaling::global()
                         .set_window_size(size.width, size.height);
                     state.pending_resize = None;
                 }
-            }
         }
         Message::SplashTick | Message::EnterMain => {
             // Handled above; unreachable once the phase is Main.

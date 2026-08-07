@@ -124,8 +124,8 @@ impl<Message> canvas::Program<Message> for VolumeChartProgram<'_> {
         draw_axis_labels(&mut frame, &plot, y_min, y_max);
 
         // 6. Crosshair vertical line synced from the line chart
-        if let Some(idx) = self.chart_state.hovered_index.get() {
-            if idx < candles.len() {
+        if let Some(idx) = self.chart_state.hovered_index.get()
+            && idx < candles.len() {
                 let x = data_x_to_screen(candles[idx].timestamp as f64, x_min, x_max, &plot);
                 if x >= plot.x && x <= plot.x + plot.width {
                     let vline = Path::new(|p| {
@@ -135,13 +135,12 @@ impl<Message> canvas::Program<Message> for VolumeChartProgram<'_> {
                     frame.stroke(&vline, Stroke::default().with_color(CROSSHAIR_COLOR).with_width(1.0));
                 }
             }
-        }
 
         // 7. Volume tooltip in top-left corner
         let tooltip_idx = self.chart_state.hovered_index.get()
             .or_else(|| today_candle(candles).map(|(_, idx)| idx));
-        if let Some(idx) = tooltip_idx {
-            if idx < candles.len() {
+        if let Some(idx) = tooltip_idx
+            && idx < candles.len() {
                 let vol = candles[idx].volume;
                 frame.fill_text(canvas::Text {
                     content: format!("VOL: {:.2}", vol),
@@ -154,7 +153,6 @@ impl<Message> canvas::Program<Message> for VolumeChartProgram<'_> {
                     ..canvas::Text::default()
                 });
             }
-        }
 
         vec![frame.into_geometry()]
     }

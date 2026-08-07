@@ -10,7 +10,7 @@ fn fmt_usd(value: f64) -> String {
     let whole_str = whole.to_string();
     let mut result = String::with_capacity(whole_str.len() + whole_str.len() / 3 + 3);
     for (i, c) in whole_str.chars().enumerate() {
-        if i > 0 && (whole_str.len() - i) % 3 == 0 {
+        if i > 0 && (whole_str.len() - i).is_multiple_of(3) {
             result.push(',');
         }
         result.push(c);
@@ -26,7 +26,7 @@ fn fmt_whole(value: f64) -> String {
     let s = whole.to_string();
     let mut result = String::with_capacity(s.len() + s.len() / 3);
     for (i, c) in s.chars().enumerate() {
-        if i > 0 && (s.len() - i) % 3 == 0 {
+        if i > 0 && (s.len() - i).is_multiple_of(3) {
             result.push(',');
         }
         result.push(c);

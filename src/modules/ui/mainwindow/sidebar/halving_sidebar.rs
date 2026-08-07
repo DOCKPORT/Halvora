@@ -37,7 +37,7 @@ pub fn view<'a>(
     for i in (1..=32).step_by(2) {
         let row = Row::with_children(vec![
             halving_button(i, selected_halving, halving_pl_signs.get(i as usize).copied().unwrap_or(PLSign::NoChange)),
-            if i + 1 <= 32 {
+            if i < 32 {
                 halving_button(i + 1, selected_halving, halving_pl_signs.get((i + 1) as usize).copied().unwrap_or(PLSign::NoChange))
             } else {
                 container(iced::widget::column![])
