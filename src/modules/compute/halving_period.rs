@@ -170,6 +170,17 @@ pub fn halving_subsidy_btc(halving_number: u32) -> String {
     }
 }
 
+/// Public: the inclusive block range of a halving period, as
+/// `(start_height, next_halving_start_height)`.
+///
+/// Bitcoin halves every 210,000 blocks, so halving `n` starts at block
+/// `n * 210_000` and runs through `(n + 1) * 210_000 - 1`. The range is
+/// deterministic and does not require a database read.
+pub fn halving_block_range(halving_number: u32) -> Option<(u64, u64)> {
+    let n = u64::from(halving_number);
+    Some((n * 210_000, (n + 1) * 210_000))
+}
+
 /// Public: daily candles for a halving period, ascending by date.
 ///
 /// Returns an empty set when the halving is in the future or a database is
@@ -307,6 +318,13 @@ mod tests {
         // H-5 has a row but a NULL timestamp (not mined yet).
         let result = query_period(&blocks, &candles, 5, 99_999_999_999);
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn block_range_is_deterministic() {
+        // H-5 spans 1,050,000 through 1,259,999, ending at the next start.
+        assert_eq!(halving_block_range(5), Some((1_050_000, 1_260_000)));
+        assert_eq!(halving_block_range(1), Some((210_000, 420_000)));
     }
 
     #[test]

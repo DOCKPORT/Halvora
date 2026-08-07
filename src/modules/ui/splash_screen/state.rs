@@ -10,9 +10,15 @@ pub struct SplashState {
     duration_secs: f32,
     /// The instant the splash started, used to compute elapsed time.
     start_time: Option<Instant>,
+    /// Whether the true window size (and thus the scale factor) is known.
+    /// Until true, the splash must not render scale-dependent content.
+    ready: bool,
 }
 
 impl SplashState {
+    /// Fade-in duration in seconds; the splash ramps from transparent to
+    /// fully visible over this window at the start.
+    pub const FADE_IN_SECS: f32 = 0.5;
     /// The splash duration in seconds; the splash stays fully visible for
     /// this long before the fade-out begins.
     pub const DURATION_SECS: f32 = 5.0;
@@ -20,8 +26,9 @@ impl SplashState {
     pub const FADE_OUT_SECS: f32 = 0.8;
 
     /// The total time from start until the splash is done, including the
-    /// fade-out.
-    pub const TOTAL_SECS: f32 = Self::DURATION_SECS + Self::FADE_OUT_SECS;
+    /// fade-in and fade-out.
+    pub const TOTAL_SECS: f32 =
+        Self::FADE_IN_SECS + Self::DURATION_SECS + Self::FADE_OUT_SECS;
 
     /// Creates a new splash state with the given total duration.
     pub fn new(duration_secs: f32) -> Self {
@@ -29,7 +36,19 @@ impl SplashState {
             progress: 0.0,
             duration_secs,
             start_time: None,
+            ready: false,
         }
+    }
+
+    /// Marks the splash ready, i.e. the true window size is known and the
+    /// scale factor is resolved. Called once on the first resize event.
+    pub fn mark_ready(&mut self) {
+        self.ready = true;
+    }
+
+    /// Returns whether the splash is ready to render scale-dependent content.
+    pub fn is_ready(&self) -> bool {
+        self.ready
     }
 
     /// Records the splash start instant.
@@ -70,16 +89,20 @@ impl SplashState {
 
     /// The current opacity in the range 0.0..=1.0.
     ///
-    /// Opacity holds at 1.0 for the full display duration, then ramps to 0
-    /// over the fade-out window. There is no fade-in.
+    /// Opacity ramps from 0 to 1 over the fade-in window, holds at 1.0 for
+    /// the full display duration, then ramps to 0 over the fade-out window.
     pub fn opacity(&self) -> f32 {
         let elapsed = self.elapsed_secs();
-        if elapsed <= self.duration_secs {
+        if elapsed <= Self::FADE_IN_SECS {
+            // Fade-in window at the start.
+            (elapsed / Self::FADE_IN_SECS).clamp(0.0, 1.0)
+        } else if elapsed <= Self::FADE_IN_SECS + self.duration_secs {
             // Fully visible during the display duration.
             1.0
         } else {
             // Fade-out window after the display duration ends.
-            ((self.duration_secs + Self::FADE_OUT_SECS - elapsed) / Self::FADE_OUT_SECS)
+            ((Self::FADE_IN_SECS + self.duration_secs + Self::FADE_OUT_SECS - elapsed)
+                / Self::FADE_OUT_SECS)
                 .clamp(0.0, 1.0)
         }
     }
@@ -99,7 +122,7 @@ pub struct MainFadeInState {
 
 impl MainFadeInState {
     /// The main dashboard fade-in duration in seconds.
-    pub const FADE_IN_SECS: f32 = 0.8;
+    pub const FADE_IN_SECS: f32 = 1.0;
 
     /// Creates a new main fade-in state.
     pub fn new(duration_secs: f32) -> Self {

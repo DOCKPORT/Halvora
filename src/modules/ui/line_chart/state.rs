@@ -50,6 +50,10 @@ pub struct LineChartState {
     /// Active websocket price flash (green up / red down), mirrored from the
     /// application so the chart tooltip can highlight the changed digits.
     pub ws_flash: Cell<Option<WsFlash>>,
+    /// Block range shown in the top-left for a started (past or current)
+    /// halving, as `(start_height, next_start_height)`. `None` for YOY or when
+    /// no halving is active.
+    pub block_range: Cell<Option<(u64, u64)>>,
 }
 
 impl LineChartState {
@@ -66,6 +70,7 @@ impl LineChartState {
             range_pending: Cell::new(None),
             range_preview: Cell::new(None),
             ws_flash: Cell::new(None),
+            block_range: Cell::new(None),
         }
     }
 

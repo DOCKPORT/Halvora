@@ -104,6 +104,15 @@ impl Scaling {
         })
     }
 
+    /// Ensures the global scale factor is configured.
+    ///
+    /// Call this as the very first statement in `main()` so the scale is
+    /// resolved before any other startup work (API fetches, window creation).
+    /// Idempotent: subsequent calls return immediately.
+    pub fn init() {
+        Self::global();
+    }
+
     /// The current scale factor.
     fn factor(&self) -> f32 {
         f32::from_bits(self.factor_bits.load(Ordering::Relaxed))

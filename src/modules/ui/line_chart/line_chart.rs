@@ -154,23 +154,41 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
             .ws_flash
             .get()
             .filter(|f| f.is_active(std::time::Instant::now()));
+        // The websocket flash only ever applies to the live (today's) candle.
+        // A historical candle's close does not change with the live price, so
+        // it must never flash.
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        let today_midnight = now - (now % 86_400);
         if let (Some(candle), Some(active_idx)) = (&state.candle, state.active_idx) {
+            let live_flash = if candle.timestamp == today_midnight {
+                flash
+            } else {
+                None
+            };
             draw_crosshair(
                 &mut frame, &plot,
                 candle, active_idx,
                 &self.data.candles, x_min, x_max,
                 true, // show vertical line
-                flash,
+                live_flash,
             );
         } else if let Some((today_cdl, today_idx)) = today_candle(&self.data.candles)
             .or_else(|| last_candle(&self.data.candles))
         {
+            let live_flash = if today_cdl.timestamp == today_midnight {
+                flash
+            } else {
+                None
+            };
             draw_crosshair(
                 &mut frame, &plot,
                 &today_cdl, today_idx,
                 &self.data.candles, x_min, x_max,
                 false, // no vertical line — not hovered
-                flash,
+                live_flash,
             );
         }
 

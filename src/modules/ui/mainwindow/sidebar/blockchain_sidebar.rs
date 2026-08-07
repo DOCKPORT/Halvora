@@ -175,7 +175,7 @@ pub fn view<'a>(
 
     container(
         stack![
-            crate::modules::ui::splash_screen::crosshatch_background::view_with_h_v_padding(1.0, 12.0, 0.0),
+            crate::modules::ui::splash_screen::crosshatch_background::view_with_h_v_padding(0.35, 12.0, 0.0),
             scrollable_layer,
         ]
         .width(Length::Fill)

@@ -1,4 +1,4 @@
-use iced::widget::{column, container, progress_bar, stack, svg};
+use iced::widget::{column, container, progress_bar, stack, svg, Space};
 use iced::{Color, Element, Length, Vector};
 use crate::modules::ui::theme;
 
@@ -25,6 +25,16 @@ const BACKDROP_PADDING: f32 = 24.0;
 /// progress bar. The splash fades out before the transition to the main
 /// dashboard, driven by `SplashState::opacity`.
 pub fn view<'a>(state: &'a SplashState) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
+    // Hold a completely empty frame until the true window size (and thus the
+    // scale factor) is known. Rendering nothing avoids any size-dependent
+    // content at the wrong scale, which would cause a startup jump.
+    if !state.is_ready() {
+        return Space::new()
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into();
+    }
+
     // Current fade opacity in the range 0.0..=1.0.
     let opacity = state.opacity();
 

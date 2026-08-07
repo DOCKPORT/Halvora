@@ -369,10 +369,11 @@ fn subscription(state: &Halvora) -> Subscription<Message> {
     }
 
     // While the splash or the main fade-in is active, drive progress on a
-    // fixed interval (~60fps) to keep the animations smooth.
+    // fast fixed interval (~125fps) to keep the fade-in, fade-out, and
+    // progress bar animations smooth.
     if matches!(state.phase, AppPhase::Splash(_) | AppPhase::MainFadeIn(_)) {
         subs.push(
-            iced::time::every(Duration::from_millis(16)).map(|_| Message::SplashTick),
+            iced::time::every(Duration::from_millis(8)).map(|_| Message::SplashTick),
         );
     }
 
@@ -382,8 +383,14 @@ fn subscription(state: &Halvora) -> Subscription<Message> {
 fn update(state: &mut Halvora, message: Message) {
     // Handle transitional (splash / fade-in) messages on every tick.
     if matches!(message, Message::SplashTick | Message::EnterMain) {
-        // Splash phase: advance progress, then move to the dashboard fade-in.
+        // Splash phase: wait until the scale is resolved (first real window
+        // size), then advance progress and move to the dashboard fade-in.
         if let AppPhase::Splash(s) = &mut state.phase {
+            // Do not start the timer until the true window size is known, so
+            // the splash never renders (nor advances) at a wrong scale.
+            if !s.is_ready() {
+                return;
+            }
             // Set the start time on the first tick, then measure progress
             // relative to it.
             let elapsed = match s.start_time() {
@@ -420,6 +427,15 @@ fn update(state: &mut Halvora, message: Message) {
         Message::HalvingSelected(n) => {
             state.selected_halving = Some(n);
             state.yoy_selected = false;
+            // Show the block range in the top-left only for started halvings
+            // (past or current), determined from the live halving data.
+            state.line_chart_state.block_range.set(
+                if n <= state.current_halving {
+                    crate::modules::compute::halving_period::halving_block_range(n)
+                } else {
+                    None
+                },
+            );
             // Record the ETA and subsidy for a future halving page.
             state.selected_halving_eta =
                 Some(crate::modules::compute::halving_eta::halving_eta(
@@ -468,6 +484,8 @@ fn update(state: &mut Halvora, message: Message) {
         Message::YoYSelected => {
             state.yoy_selected = true;
             state.selected_halving = None;
+            // YOY is not a halving period, so never show a block range.
+            state.line_chart_state.block_range.set(None);
             state.selected_halving_eta = None;
             state.selected_halving_subsidy = None;
             // Metric bar shows the current tip subsidy on YOY.
@@ -620,6 +638,18 @@ fn update(state: &mut Halvora, message: Message) {
                 .set(crate::modules::ui::line_chart::state::DrawingMode::Range);
         }
         Message::WindowResized(size) => {
+            // During the splash, this is the first opportunity to learn the
+            // true window size. Apply the scale factor immediately (no
+            // debounce) and mark the splash ready, so the splash first
+            // renders at the correct scale — no startup jump.
+            if let AppPhase::Splash(s) = &mut state.phase {
+                if !s.is_ready() {
+                    crate::modules::ui::scaling::Scaling::global()
+                        .set_window_size(size.width, size.height);
+                    s.mark_ready();
+                }
+                return;
+            }
             // Record the latest size and when it arrived. The actual scale
             // factor is applied later by ResizePoll once the events settle,
             // so the expensive `sp` re-layout does not run every frame.
