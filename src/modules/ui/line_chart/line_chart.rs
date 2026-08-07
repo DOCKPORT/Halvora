@@ -2,9 +2,7 @@ use chrono::{DateTime, Datelike};
 use iced::keyboard;
 use iced::keyboard::key;
 use iced::mouse;
-use iced::widget::canvas::{
-    self, Canvas, Fill, Frame, Geometry, Path, Stroke, Style,
-};
+use iced::widget::canvas::{self, Canvas, Fill, Frame, Geometry, Path, Stroke, Style};
 use iced::widget::text;
 use iced::{Color, Element, Length, Point, Rectangle, Renderer, Theme};
 
@@ -56,12 +54,10 @@ where
     Message: 'a,
 {
     fn from(chart: LineChart<'a>) -> Element<'a, Message> {
-        Canvas::new(LineChartProgram {
-            data: chart.state,
-        })
-        .width(chart.width)
-        .height(chart.height)
-        .into()
+        Canvas::new(LineChartProgram { data: chart.state })
+            .width(chart.width)
+            .height(chart.height)
+            .into()
     }
 }
 
@@ -169,14 +165,18 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
                 None
             };
             draw_crosshair(
-                &mut frame, &plot,
-                candle, active_idx,
-                &self.data.candles, x_min, x_max,
+                &mut frame,
+                &plot,
+                candle,
+                active_idx,
+                &self.data.candles,
+                x_min,
+                x_max,
                 true, // show vertical line
                 live_flash,
             );
-        } else if let Some((today_cdl, today_idx)) = today_candle(&self.data.candles)
-            .or_else(|| last_candle(&self.data.candles))
+        } else if let Some((today_cdl, today_idx)) =
+            today_candle(&self.data.candles).or_else(|| last_candle(&self.data.candles))
         {
             let live_flash = if today_cdl.timestamp == today_midnight {
                 flash
@@ -184,20 +184,20 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
                 None
             };
             draw_crosshair(
-                &mut frame, &plot,
-                &today_cdl, today_idx,
-                &self.data.candles, x_min, x_max,
+                &mut frame,
+                &plot,
+                &today_cdl,
+                today_idx,
+                &self.data.candles,
+                x_min,
+                x_max,
                 false, // no vertical line — not hovered
                 live_flash,
             );
         }
 
         // 8. Range boxes (completed + preview) — drawn on top of everything
-        drawing_tools::draw_ranges(
-            &mut frame, &plot,
-            x_min, x_max, y_min, y_max,
-            self.data,
-        );
+        drawing_tools::draw_ranges(&mut frame, &plot, x_min, x_max, y_min, y_max, self.data);
 
         vec![frame.into_geometry()]
     }
@@ -228,24 +228,24 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
         }
         // In Range mode, process clicks for range placement but let cursor
         // events fall through so crosshair tracking still works.
-        if self.data.drawing_mode.get() == crate::modules::ui::line_chart::state::DrawingMode::Range {
+        if self.data.drawing_mode.get() == crate::modules::ui::line_chart::state::DrawingMode::Range
+        {
             use crate::modules::ui::mainwindow::dashboard_layout::drawing_tools::RangeActionResult;
             if let canvas::Event::Mouse(mouse::Event::ButtonPressed(_)) = event {
                 return match drawing_tools::handle_range_event(event, bounds, cursor, self.data) {
                     RangeActionResult::RedrawAndCapture => {
                         Some(canvas::Action::request_redraw().and_capture())
                     }
-                    RangeActionResult::Redraw => {
-                        Some(canvas::Action::request_redraw())
-                    }
+                    RangeActionResult::Redraw => Some(canvas::Action::request_redraw()),
                     RangeActionResult::None => None,
                 };
             }
             // Also handle CursorMoved for live preview update
-            if let canvas::Event::Mouse(mouse::Event::CursorMoved { .. }) = event {
-                if drawing_tools::handle_range_event(event, bounds, cursor, self.data) == RangeActionResult::Redraw {
-                    // Still need to update crosshair too, so fall through
-                }
+            if let canvas::Event::Mouse(mouse::Event::CursorMoved { .. }) = event
+                && drawing_tools::handle_range_event(event, bounds, cursor, self.data)
+                    == RangeActionResult::Redraw
+            {
+                // Still need to update crosshair too, so fall through
             }
         }
 
@@ -299,7 +299,11 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
                         } else {
                             let left_dist = cursor_ts - candles[idx - 1].timestamp as f64;
                             let right_dist = candles[idx].timestamp as f64 - cursor_ts;
-                            if left_dist <= right_dist { idx - 1 } else { idx }
+                            if left_dist <= right_dist {
+                                idx - 1
+                            } else {
+                                idx
+                            }
                         };
                         state.candle = Some(candles[nearest_idx]);
                         state.active_idx = Some(nearest_idx);
@@ -329,7 +333,11 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
                     let new_idx = match k.as_ref() {
                         key::Key::Named(key::Named::ArrowLeft) => idx.saturating_sub(1),
                         key::Key::Named(key::Named::ArrowRight) => {
-                            if idx + 1 < candles.len() { idx + 1 } else { idx }
+                            if idx + 1 < candles.len() {
+                                idx + 1
+                            } else {
+                                idx
+                            }
                         }
                         _ => return None,
                     };
@@ -420,14 +428,7 @@ fn trend_colours(candles: &[Candle]) -> (Color, Color) {
 
 // ── Drawing helpers ──────────────────────────────────────────────────────
 
-fn draw_grid(
-    frame: &mut Frame,
-    plot: &Rectangle,
-    x_min: f64,
-    x_max: f64,
-    y_min: f64,
-    y_max: f64,
-) {
+fn draw_grid(frame: &mut Frame, plot: &Rectangle, x_min: f64, x_max: f64, y_min: f64, y_max: f64) {
     // Horizontal lines (from price ticks)
     let ticks = axis::y_ticks(y_min, y_max);
     for t in &ticks {
@@ -436,7 +437,10 @@ fn draw_grid(
             p.move_to(Point::new(plot.x, y));
             p.line_to(Point::new(plot.x + plot.width, y));
         });
-        frame.stroke(&path, Stroke::default().with_color(GRID_COLOR).with_width(0.5));
+        frame.stroke(
+            &path,
+            Stroke::default().with_color(GRID_COLOR).with_width(0.5),
+        );
     }
 
     // Vertical lines (from date ticks)
@@ -447,7 +451,10 @@ fn draw_grid(
             p.move_to(Point::new(x, plot.y));
             p.line_to(Point::new(x, plot.y + plot.height));
         });
-        frame.stroke(&path, Stroke::default().with_color(GRID_COLOR).with_width(0.5));
+        frame.stroke(
+            &path,
+            Stroke::default().with_color(GRID_COLOR).with_width(0.5),
+        );
     }
 }
 
@@ -479,15 +486,17 @@ fn draw_price_line(
             p.line_to(Point::new(x, y));
         }
 
-        let last_x =
-            data_x_to_screen(candles.last().unwrap().timestamp as f64, x_min, x_max, plot);
+        let last_x = data_x_to_screen(candles.last().unwrap().timestamp as f64, x_min, x_max, plot);
         p.line_to(Point::new(last_x, plot.y + plot.height));
         p.close();
     });
-    frame.fill(&fill_path, Fill {
-        style: Style::Solid(fill_color),
-        ..Fill::default()
-    });
+    frame.fill(
+        &fill_path,
+        Fill {
+            style: Style::Solid(fill_color),
+            ..Fill::default()
+        },
+    );
 
     // The line itself
     let line_path = Path::new(|p| {
@@ -501,7 +510,10 @@ fn draw_price_line(
             p.line_to(Point::new(x, y));
         }
     });
-    frame.stroke(&line_path, Stroke::default().with_color(line_color).with_width(2.0));
+    frame.stroke(
+        &line_path,
+        Stroke::default().with_color(line_color).with_width(2.0),
+    );
 }
 
 /// Draw the progressive cumulative VWAP line (white, 2px).
@@ -518,10 +530,7 @@ fn draw_vwap_line(
     y_min: f64,
     y_max: f64,
 ) {
-    let pairs: Vec<(f64, f64)> = candles
-        .iter()
-        .map(|c| (c.close, c.volume))
-        .collect();
+    let pairs: Vec<(f64, f64)> = candles.iter().map(|c| (c.close, c.volume)).collect();
 
     let vwaps = progressive_vwap(&pairs);
 
@@ -548,7 +557,10 @@ fn draw_vwap_line(
         }
     });
 
-    frame.stroke(&path, Stroke::default().with_color(VWAP_COLOR).with_width(1.5));
+    frame.stroke(
+        &path,
+        Stroke::default().with_color(VWAP_COLOR).with_width(1.5),
+    );
 }
 
 /// Draw subtle vertical lines at quarter boundaries (behind price content).
@@ -563,10 +575,7 @@ fn draw_quarter_lines(frame: &mut Frame, plot: &Rectangle, x_min: f64, x_max: f6
             p.move_to(Point::new(x, plot.y));
             p.line_to(Point::new(x, plot.y + plot.height));
         });
-        frame.stroke(
-            &path,
-            Stroke::default().with_color(qcolor).with_width(1.0),
-        );
+        frame.stroke(&path, Stroke::default().with_color(qcolor).with_width(1.0));
     }
 }
 
@@ -697,7 +706,12 @@ fn draw_crosshair(
                 p.move_to(Point::new(x, plot.y));
                 p.line_to(Point::new(x, plot.y + plot.height));
             });
-            frame.stroke(&vline, Stroke::default().with_color(CROSSHAIR_COLOR).with_width(1.0));
+            frame.stroke(
+                &vline,
+                Stroke::default()
+                    .with_color(CROSSHAIR_COLOR)
+                    .with_width(1.0),
+            );
         }
     }
 
@@ -752,9 +766,18 @@ fn draw_crosshair(
             "{} {} '{} \u{2014} H: {}  L: {}  C: ",
             dt.day(),
             match dt.month() {
-                1 => "Jan", 2 => "Feb", 3 => "Mar", 4 => "Apr",
-                5 => "May", 6 => "Jun", 7 => "Jul", 8 => "Aug",
-                9 => "Sep", 10 => "Oct", 11 => "Nov", 12 => "Dec",
+                1 => "Jan",
+                2 => "Feb",
+                3 => "Mar",
+                4 => "Apr",
+                5 => "May",
+                6 => "Jun",
+                7 => "Jul",
+                8 => "Aug",
+                9 => "Sep",
+                10 => "Oct",
+                11 => "Nov",
+                12 => "Dec",
                 _ => "???",
             },
             dt.year() % 100,

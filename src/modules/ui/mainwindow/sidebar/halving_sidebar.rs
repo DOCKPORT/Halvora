@@ -1,8 +1,8 @@
-use iced::widget::{button, container, scrollable, stack, svg, Column, Row};
-use iced::{border, Color, ContentFit, Element, Length};
 use crate::modules::compute::metrics::PLSign;
 use crate::modules::ui::scaling::sp;
 use crate::modules::ui::theme;
+use iced::widget::{Column, Row, button, container, scrollable, stack, svg};
+use iced::{Color, ContentFit, Element, Length, border};
 
 /// The sidebar banner SVG, embedded in the binary at compile time so the
 /// running program does not depend on any path on disk.
@@ -20,7 +20,10 @@ fn fill_colors(sign: PLSign) -> (Color, Color) {
     match sign {
         PLSign::Positive => (theme::BUTTON_FILL_GREEN, theme::BUTTON_FILL_GREEN_HOVER),
         PLSign::Negative => (theme::BUTTON_FILL_RED, theme::BUTTON_FILL_RED_HOVER),
-        PLSign::NoChange => (theme::HALVING_BUTTON_BACKGROUND, theme::HALVING_BUTTON_HOVER),
+        PLSign::NoChange => (
+            theme::HALVING_BUTTON_BACKGROUND,
+            theme::HALVING_BUTTON_HOVER,
+        ),
     }
 }
 
@@ -36,9 +39,23 @@ pub fn view<'a>(
     let mut rows: Vec<Element<'a, Message>> = Vec::with_capacity(16);
     for i in (1..=32).step_by(2) {
         let row = Row::with_children(vec![
-            halving_button(i, selected_halving, halving_pl_signs.get(i as usize).copied().unwrap_or(PLSign::NoChange)),
+            halving_button(
+                i,
+                selected_halving,
+                halving_pl_signs
+                    .get(i as usize)
+                    .copied()
+                    .unwrap_or(PLSign::NoChange),
+            ),
             if i < 32 {
-                halving_button(i + 1, selected_halving, halving_pl_signs.get((i + 1) as usize).copied().unwrap_or(PLSign::NoChange))
+                halving_button(
+                    i + 1,
+                    selected_halving,
+                    halving_pl_signs
+                        .get((i + 1) as usize)
+                        .copied()
+                        .unwrap_or(PLSign::NoChange),
+                )
             } else {
                 container(iced::widget::column![])
                     .width(Length::Fixed(sp(100.0)))
@@ -71,9 +88,9 @@ pub fn view<'a>(
             .on_press(Message::AboutClicked)
             .style(|_theme, status| button::Style {
                 background: match status {
-                    button::Status::Hovered => Some(iced::Background::Color(
-                        Color::from_rgba(1.0, 1.0, 1.0, 0.05),
-                    )),
+                    button::Status::Hovered => Some(iced::Background::Color(Color::from_rgba(
+                        1.0, 1.0, 1.0, 0.05,
+                    ))),
                     _ => None,
                 },
                 border: match status {
@@ -128,7 +145,9 @@ pub fn view<'a>(
 
     container(
         stack![
-            crate::modules::ui::splash_screen::crosshatch_background::view_with_h_v_padding(0.35, 12.0, 0.0),
+            crate::modules::ui::splash_screen::crosshatch_background::view_with_h_v_padding(
+                0.35, 12.0, 0.0
+            ),
             scrollable_layer,
         ]
         .width(Length::Fill)
@@ -138,9 +157,7 @@ pub fn view<'a>(
     .height(Length::Fill)
     .padding(0)
     .style(|_theme| {
-        container::Style::default().background(
-            iced::Background::Color(theme::SIDEBAR_BACKGROUND)
-        )
+        container::Style::default().background(iced::Background::Color(theme::SIDEBAR_BACKGROUND))
     })
     .into()
 }
@@ -178,7 +195,9 @@ fn yoy_button<'a>(
         let text_color = theme::HALVING_BUTTON_TEXT;
 
         let border = if is_selected {
-            border::rounded(8).color(theme::HALVING_BUTTON_TEXT).width(1.5)
+            border::rounded(8)
+                .color(theme::HALVING_BUTTON_TEXT)
+                .width(1.5)
         } else {
             border::rounded(8)
                 .color(iced::Color::from_rgb(0.6, 0.6, 0.6))
@@ -231,7 +250,9 @@ fn halving_button<'a>(
         let text_color = theme::HALVING_BUTTON_TEXT;
 
         let border = if is_selected {
-            border::rounded(8).color(theme::HALVING_BUTTON_TEXT).width(1.5)
+            border::rounded(8)
+                .color(theme::HALVING_BUTTON_TEXT)
+                .width(1.5)
         } else {
             border::rounded(8)
                 .color(iced::Color::from_rgb(0.6, 0.6, 0.6))

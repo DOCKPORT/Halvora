@@ -1,6 +1,6 @@
+use crate::modules::compute::year_over_year::Candle;
 use rusqlite::Connection;
 use std::path::PathBuf;
-use crate::modules::compute::year_over_year::Candle;
 
 /// Seconds in a day.
 const SECS_PER_DAY: i64 = 86_400;
@@ -283,10 +283,7 @@ mod tests {
         let days: Vec<i64> = result.iter().map(|c| c.timestamp).collect();
         let h1_day = start_of_day(1_000_000_000);
         let h2_day = start_of_day(1_500_000_000);
-        assert_eq!(
-            days,
-            vec![h1_day, h1_day + SECS_PER_DAY, h2_day]
-        );
+        assert_eq!(days, vec![h1_day, h1_day + SECS_PER_DAY, h2_day]);
     }
 
     #[test]
@@ -302,10 +299,7 @@ mod tests {
         let days: Vec<i64> = result.iter().map(|c| c.timestamp).collect();
         let h2_day = start_of_day(1_500_000_000);
         let h3_day = start_of_day(2_000_000_000);
-        assert_eq!(
-            days,
-            vec![h2_day, h2_day + SECS_PER_DAY, h3_day]
-        );
+        assert_eq!(days, vec![h2_day, h2_day + SECS_PER_DAY, h3_day]);
     }
 
     #[test]

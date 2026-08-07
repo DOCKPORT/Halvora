@@ -1,7 +1,5 @@
 use iced::mouse;
-use iced::widget::canvas::{
-    self, Canvas, Frame, Geometry, Path, Stroke,
-};
+use iced::widget::canvas::{self, Canvas, Frame, Geometry, Path, Stroke};
 use iced::{Color, Element, Length, Point, Rectangle, Renderer, Theme};
 
 use crate::modules::ui::scaling;
@@ -36,7 +34,9 @@ pub struct BackgroundProgram {
 }
 
 /// Builds the splash background canvas widget with uniform edge padding.
-pub fn view(opacity: f32) -> Element<'static, crate::modules::ui::mainwindow::application::Message> {
+pub fn view(
+    opacity: f32,
+) -> Element<'static, crate::modules::ui::mainwindow::application::Message> {
     view_with_padding(opacity, EDGE_PADDING)
 }
 
@@ -55,10 +55,14 @@ pub fn view_with_h_v_padding(
     padding_x: f32,
     padding_y: f32,
 ) -> Element<'static, crate::modules::ui::mainwindow::application::Message> {
-    Canvas::new(BackgroundProgram { opacity, padding_x, padding_y })
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
+    Canvas::new(BackgroundProgram {
+        opacity,
+        padding_x,
+        padding_y,
+    })
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .into()
 }
 
 impl<Message> canvas::Program<Message> for BackgroundProgram {
@@ -120,7 +124,14 @@ impl<Message> canvas::Program<Message> for BackgroundProgram {
 
 /// Draws one 45° line segment from its start point, clipped to the padded
 /// rectangle's right and bottom edges.
-fn draw_segment(frame: &mut Frame, stroke: Stroke, start_x: f32, start_y: f32, right: f32, bottom: f32) {
+fn draw_segment(
+    frame: &mut Frame,
+    stroke: Stroke,
+    start_x: f32,
+    start_y: f32,
+    right: f32,
+    bottom: f32,
+) {
     let horiz_dist = right - start_x;
     let vert_dist = bottom - start_y;
     let dist = horiz_dist.min(vert_dist);

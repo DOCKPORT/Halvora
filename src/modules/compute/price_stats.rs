@@ -77,13 +77,9 @@ fn db_all_time_high() -> Option<f64> {
     *CACHED.get_or_init(|| {
         let db_path = db_path();
         let conn = Connection::open(&db_path).ok()?;
-        conn.query_row(
-            "SELECT MAX(high) FROM daily_candles",
-            [],
-            |row| row.get(0),
-        )
-        .ok()
-        .flatten()
+        conn.query_row("SELECT MAX(high) FROM daily_candles", [], |row| row.get(0))
+            .ok()
+            .flatten()
     })
 }
 

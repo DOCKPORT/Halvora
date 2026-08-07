@@ -1,7 +1,5 @@
 use iced::mouse;
-use iced::widget::canvas::{
-    self, Canvas, Frame, Geometry, Path, Stroke, Fill, Style,
-};
+use iced::widget::canvas::{self, Canvas, Fill, Frame, Geometry, Path, Stroke, Style};
 use iced::widget::text;
 use iced::{Color, Element, Length, Point, Rectangle, Renderer, Theme};
 
@@ -114,9 +112,7 @@ impl<Message> canvas::Program<Message> for VolumeChartProgram<'_> {
             });
             frame.stroke(
                 &qline_path,
-                Stroke::default()
-                    .with_color(quarter_color)
-                    .with_width(1.0),
+                Stroke::default().with_color(quarter_color).with_width(1.0),
             );
         }
 
@@ -125,34 +121,44 @@ impl<Message> canvas::Program<Message> for VolumeChartProgram<'_> {
 
         // 6. Crosshair vertical line synced from the line chart
         if let Some(idx) = self.chart_state.hovered_index.get()
-            && idx < candles.len() {
-                let x = data_x_to_screen(candles[idx].timestamp as f64, x_min, x_max, &plot);
-                if x >= plot.x && x <= plot.x + plot.width {
-                    let vline = Path::new(|p| {
-                        p.move_to(Point::new(x, plot.y));
-                        p.line_to(Point::new(x, plot.y + plot.height));
-                    });
-                    frame.stroke(&vline, Stroke::default().with_color(CROSSHAIR_COLOR).with_width(1.0));
-                }
+            && idx < candles.len()
+        {
+            let x = data_x_to_screen(candles[idx].timestamp as f64, x_min, x_max, &plot);
+            if x >= plot.x && x <= plot.x + plot.width {
+                let vline = Path::new(|p| {
+                    p.move_to(Point::new(x, plot.y));
+                    p.line_to(Point::new(x, plot.y + plot.height));
+                });
+                frame.stroke(
+                    &vline,
+                    Stroke::default()
+                        .with_color(CROSSHAIR_COLOR)
+                        .with_width(1.0),
+                );
             }
+        }
 
         // 7. Volume tooltip in top-left corner
-        let tooltip_idx = self.chart_state.hovered_index.get()
+        let tooltip_idx = self
+            .chart_state
+            .hovered_index
+            .get()
             .or_else(|| today_candle(candles).map(|(_, idx)| idx));
         if let Some(idx) = tooltip_idx
-            && idx < candles.len() {
-                let vol = candles[idx].volume;
-                frame.fill_text(canvas::Text {
-                    content: format!("VOL: {:.2}", vol),
-                    position: Point::new(plot.x + 4.0, plot.y + 4.0),
-                    color: Color::WHITE,
-                    size: sp(14.0).into(),
-                    font: iced::Font::with_name("Geist Mono"),
-                    align_x: text::Alignment::Left,
-                    align_y: iced::alignment::Vertical::Top,
-                    ..canvas::Text::default()
-                });
-            }
+            && idx < candles.len()
+        {
+            let vol = candles[idx].volume;
+            frame.fill_text(canvas::Text {
+                content: format!("VOL: {:.2}", vol),
+                position: Point::new(plot.x + 4.0, plot.y + 4.0),
+                color: Color::WHITE,
+                size: sp(14.0).into(),
+                font: iced::Font::with_name("Geist Mono"),
+                align_x: text::Alignment::Left,
+                align_y: iced::alignment::Vertical::Top,
+                ..canvas::Text::default()
+            });
+        }
 
         vec![frame.into_geometry()]
     }
@@ -211,7 +217,10 @@ fn draw_grid(frame: &mut Frame, plot: &Rectangle, y_min: f64, y_max: f64) {
             p.move_to(Point::new(plot.x, y));
             p.line_to(Point::new(plot.x + plot.width, y));
         });
-        frame.stroke(&path, Stroke::default().with_color(GRID_COLOR).with_width(0.5));
+        frame.stroke(
+            &path,
+            Stroke::default().with_color(GRID_COLOR).with_width(0.5),
+        );
     }
 }
 

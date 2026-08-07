@@ -1,13 +1,13 @@
-use iced::mouse;
-use iced::widget::button;
-use iced::widget::canvas::{self, Frame, Path, Stroke, Fill, Style};
-use iced::widget::{row, text};
-use iced::{Color, Element, Point, Rectangle};
 use crate::modules::compute::vwap::progressive_vwap;
 use crate::modules::compute::year_over_year::Candle;
 use crate::modules::ui::line_chart::state::{DrawingMode, LineChartState, RangeBox};
 use crate::modules::ui::scaling::sp;
 use crate::modules::ui::theme;
+use iced::mouse;
+use iced::widget::button;
+use iced::widget::canvas::{self, Fill, Frame, Path, Stroke, Style};
+use iced::widget::{row, text};
+use iced::{Color, Element, Point, Rectangle};
 
 // ── Tool toggle buttons ─────────────────────────────────────────────────
 
@@ -22,11 +22,11 @@ fn tool_button<'a>(
         Color::from_rgba(0.4, 0.4, 0.4, 0.3)
     };
 
-    button(
-        text(label)
-            .size(sp(12.0))
-            .color(if active { Color::WHITE } else { theme::HALVING_BUTTON_TEXT }),
-    )
+    button(text(label).size(sp(12.0)).color(if active {
+        Color::WHITE
+    } else {
+        theme::HALVING_BUTTON_TEXT
+    }))
     .on_press(on_press)
     .padding(iced::Padding::new(sp(4.0)).horizontal(sp(10.0)))
     .style(move |_theme, _status| button::Style {
@@ -103,10 +103,7 @@ pub fn draw_anchored_vwaps(
         }
 
         let sub_candles = &candles[anchor_idx..];
-        let pairs: Vec<(f64, f64)> = sub_candles
-            .iter()
-            .map(|c| (c.close, c.volume))
-            .collect();
+        let pairs: Vec<(f64, f64)> = sub_candles.iter().map(|c| (c.close, c.volume)).collect();
 
         let vwaps = progressive_vwap(&pairs);
 
@@ -132,7 +129,10 @@ pub fn draw_anchored_vwaps(
             }
         });
 
-        frame.stroke(&path, Stroke::default().with_color(VWAP_COLOR).with_width(1.5));
+        frame.stroke(
+            &path,
+            Stroke::default().with_color(VWAP_COLOR).with_width(1.5),
+        );
     }
 }
 
@@ -156,10 +156,7 @@ pub fn hit_test_anchored_vwaps(
         }
 
         let sub_candles = &candles[anchor_idx..];
-        let pairs: Vec<(f64, f64)> = sub_candles
-            .iter()
-            .map(|c| (c.close, c.volume))
-            .collect();
+        let pairs: Vec<(f64, f64)> = sub_candles.iter().map(|c| (c.close, c.volume)).collect();
         let vwaps = progressive_vwap(&pairs);
 
         let mut prev_pt: Option<(f64, f64)> = None;
@@ -265,7 +262,11 @@ fn draw_one_range_box(
 
     // Fill
     let fill_color = if preview { PREVIEW_FILL } else { RANGE_FILL };
-    let border_color = if preview { PREVIEW_BORDER } else { RANGE_BORDER };
+    let border_color = if preview {
+        PREVIEW_BORDER
+    } else {
+        RANGE_BORDER
+    };
 
     let rect_path = Path::new(|p| {
         p.move_to(Point::new(left, top));
@@ -275,11 +276,17 @@ fn draw_one_range_box(
         p.close();
     });
 
-    frame.fill(&rect_path, Fill {
-        style: Style::Solid(fill_color),
-        ..Fill::default()
-    });
-    frame.stroke(&rect_path, Stroke::default().with_color(border_color).with_width(1.0));
+    frame.fill(
+        &rect_path,
+        Fill {
+            style: Style::Solid(fill_color),
+            ..Fill::default()
+        },
+    );
+    frame.stroke(
+        &rect_path,
+        Stroke::default().with_color(border_color).with_width(1.0),
+    );
 
     // % change label. Use the absolute value of the starting price as the
     // base so a negative base cannot flip the sign, and guard against zero.
@@ -323,10 +330,13 @@ fn draw_one_range_box(
             iced::border::radius(pill_height / 2.0),
         );
     });
-    frame.fill(&pill_path, Fill {
-        style: Style::Solid(LABEL_PILL_FILL),
-        ..Fill::default()
-    });
+    frame.fill(
+        &pill_path,
+        Fill {
+            style: Style::Solid(LABEL_PILL_FILL),
+            ..Fill::default()
+        },
+    );
 
     frame.fill_text(canvas::Text {
         content: label,
@@ -408,8 +418,10 @@ pub fn handle_range_event(
     };
 
     // Only process if cursor is inside plot area
-    if cursor_pt.x < plot.x || cursor_pt.x > plot.x + plot.width
-        || cursor_pt.y < plot.y || cursor_pt.y > plot.y + plot.height
+    if cursor_pt.x < plot.x
+        || cursor_pt.x > plot.x + plot.width
+        || cursor_pt.y < plot.y
+        || cursor_pt.y > plot.y + plot.height
     {
         return RangeActionResult::None;
     }
@@ -478,8 +490,10 @@ pub fn handle_right_click_delete(
     };
 
     // Only process if the cursor is inside the plot area.
-    if cursor_pt.x < plot.x || cursor_pt.x > plot.x + plot.width
-        || cursor_pt.y < plot.y || cursor_pt.y > plot.y + plot.height
+    if cursor_pt.x < plot.x
+        || cursor_pt.x > plot.x + plot.width
+        || cursor_pt.y < plot.y
+        || cursor_pt.y > plot.y + plot.height
     {
         return RangeActionResult::None;
     }
@@ -489,8 +503,14 @@ pub fn handle_right_click_delete(
 
     // Range boxes are drawn on top of the VWAP lines, so hit-test them first.
     if let Some(idx) = hit_test_ranges(
-        cursor_pt.x, cursor_pt.y, &plot,
-        x_min, x_max, y_min, y_max, state,
+        cursor_pt.x,
+        cursor_pt.y,
+        &plot,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+        state,
     ) {
         state.ranges.borrow_mut().remove(idx);
         state.range_pending.set(None);
@@ -503,8 +523,10 @@ pub fn handle_right_click_delete(
         cursor_pt.x as f64,
         cursor_pt.y as f64,
         &plot,
-        x_min, x_max,
-        y_min, y_max,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
         &state.candles,
         &state.anchors(),
     ) {

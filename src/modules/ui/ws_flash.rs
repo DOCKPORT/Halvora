@@ -92,11 +92,7 @@ pub fn diff_index_between(prev: f64, next: f64) -> Option<usize> {
             return Some(i);
         }
     }
-    if a.len() != b.len() {
-        Some(n)
-    } else {
-        None
-    }
+    if a.len() != b.len() { Some(n) } else { None }
 }
 
 /// Format a price with thousands separators and two decimals, e.g.

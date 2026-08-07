@@ -16,7 +16,7 @@ fn total_sats_minted_at(height: u64) -> u64 {
 
     for era in 0..MAX_ERA {
         let era_start = era * HALVING_INTERVAL;
-        let era_end   = era_start + HALVING_INTERVAL - 1;
+        let era_end = era_start + HALVING_INTERVAL - 1;
 
         if height < era_start {
             break;

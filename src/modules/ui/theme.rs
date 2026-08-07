@@ -1,5 +1,5 @@
-use iced::widget::scrollable;
 use iced::Color;
+use iced::widget::scrollable;
 
 pub const MAINWINDOW_BACKGROUND: Color = Color::from_rgb(
     0x6c as f32 / 255.0,

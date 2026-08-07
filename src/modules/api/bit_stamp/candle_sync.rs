@@ -62,10 +62,7 @@ pub fn fetch_and_store() {
     let conn = match Connection::open(&db_path) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!(
-                "[bitstamp] failed to open database {:?}: {}",
-                db_path, e
-            );
+            eprintln!("[bitstamp] failed to open database {:?}: {}", db_path, e);
             return;
         }
     };
@@ -95,11 +92,9 @@ pub fn fetch_and_store() {
 
     // Determine the latest candle we already have.
     let latest_ts: Option<i64> = conn
-        .query_row(
-            "SELECT MAX(timestamp) FROM daily_candles",
-            [],
-            |row| row.get(0),
-        )
+        .query_row("SELECT MAX(timestamp) FROM daily_candles", [], |row| {
+            row.get(0)
+        })
         .ok()
         .flatten();
 
@@ -113,7 +108,10 @@ pub fn fetch_and_store() {
     let today_midnight = now - (now % 86_400);
 
     if start_ts > today_midnight {
-        eprintln!("[bitstamp] already up to date (latest: {})", latest_ts.unwrap_or(0));
+        eprintln!(
+            "[bitstamp] already up to date (latest: {})",
+            latest_ts.unwrap_or(0)
+        );
         return;
     }
 
@@ -122,7 +120,10 @@ pub fn fetch_and_store() {
     let gap_days = (today_midnight - start_ts) / 86_400 + 1;
 
     if gap_days <= 0 {
-        eprintln!("[bitstamp] already up to date (latest: {})", latest_ts.unwrap_or(0));
+        eprintln!(
+            "[bitstamp] already up to date (latest: {})",
+            latest_ts.unwrap_or(0)
+        );
         return;
     }
 
@@ -146,10 +147,7 @@ pub fn fetch_and_store() {
         );
 
         let Some(candles) = fetch_page(batch_start, limit) else {
-            eprintln!(
-                "[bitstamp] API error at start={}, aborting",
-                batch_start
-            );
+            eprintln!("[bitstamp] API error at start={}, aborting", batch_start);
             break;
         };
 
@@ -164,10 +162,7 @@ pub fn fetch_and_store() {
         );
 
         // If this batch already covered down to start_ts, we're done.
-        let earliest_in_batch = candles
-            .first()
-            .map(|c| c.timestamp)
-            .unwrap_or(batch_start);
+        let earliest_in_batch = candles.first().map(|c| c.timestamp).unwrap_or(batch_start);
 
         if earliest_in_batch <= start_ts {
             break;
@@ -293,7 +288,10 @@ pub fn update_today_volume() {
     let conn = match Connection::open(db_path()) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("[bitstamp] failed to open database for volume update: {}", e);
+            eprintln!(
+                "[bitstamp] failed to open database for volume update: {}",
+                e
+            );
             return;
         }
     };
@@ -319,10 +317,7 @@ fn store_candles(conn: &Connection, candles: &[Candle]) -> u64 {
             rusqlite::params![c.timestamp, c.open, c.high, c.low, c.close, c.volume],
         ) {
             Ok(rows) => count += rows as u64,
-            Err(e) => eprintln!(
-                "[bitstamp] failed to insert candle {}: {}",
-                c.timestamp, e
-            ),
+            Err(e) => eprintln!("[bitstamp] failed to insert candle {}: {}", c.timestamp, e),
         }
     }
 

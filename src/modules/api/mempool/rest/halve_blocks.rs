@@ -23,7 +23,6 @@ struct BlockJson {
     difficulty: f64,
 }
 
-
 // ── Public entry point ──────────────────────────────────────────────────
 
 /// Minimum seconds between API fetches (≈1 Bitcoin block interval).
@@ -102,7 +101,8 @@ pub fn fetch_and_store() {
             "INSERT OR IGNORE INTO halve_blocks (halving_number, height, subsidy)
              VALUES (?1, ?2, ?3)",
             rusqlite::params![n, n * HALVING_INTERVAL, INITIAL_SUBSIDY_SAT / (1i64 << n)],
-        ).ok();
+        )
+        .ok();
     }
 
     // Derive the current subsidy from the most recent halving ≤ tip height.
@@ -127,10 +127,11 @@ pub fn fetch_and_store() {
             "INSERT INTO current_tip (height, timestamp, subsidy, difficulty)
              VALUES (?1, ?2, ?3, ?4)",
             rusqlite::params![tip.height, tip.timestamp as i64, subsidy, tip.difficulty],
-        ) {
-            eprintln!("[mempool] failed to insert current_tip: {}", e);
-            return;
-        }
+        )
+    {
+        eprintln!("[mempool] failed to insert current_tip: {}", e);
+        return;
+    }
 
     // Fill timestamps for any halving that has been reached but still has NULL.
     for n in 1..=HALVING_COUNT {
@@ -145,16 +146,12 @@ pub fn fetch_and_store() {
                 |row| row.get(0),
             )
             .unwrap_or(false);
-        if !has_ts
-            && let Some((_, ts)) = fetch_single_block(height) {
-                upsert_halve_block(&conn, n as i64, height, Some(ts as i64));
-            }
+        if !has_ts && let Some((_, ts)) = fetch_single_block(height) {
+            upsert_halve_block(&conn, n as i64, height, Some(ts as i64));
+        }
     }
 
-    eprintln!(
-        "[mempool] sync complete – tip at height {}",
-        tip.height,
-    );
+    eprintln!("[mempool] sync complete – tip at height {}", tip.height,);
 }
 
 // ── Internal helpers ────────────────────────────────────────────────────
@@ -196,9 +193,6 @@ fn upsert_halve_block(conn: &Connection, halving_number: i64, height: u32, times
          VALUES (?1, ?2, ?3, (SELECT subsidy FROM halve_blocks WHERE halving_number = ?1))",
         rusqlite::params![halving_number, height, timestamp],
     ) {
-        eprintln!(
-            "[mempool] failed to upsert halving block {}: {}",
-            height, e
-        );
+        eprintln!("[mempool] failed to upsert halving block {}: {}", height, e);
     }
 }

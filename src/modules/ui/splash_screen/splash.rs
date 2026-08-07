@@ -1,6 +1,6 @@
-use iced::widget::{column, container, progress_bar, stack, svg, Space};
-use iced::{Color, Element, Length, Vector};
 use crate::modules::ui::theme;
+use iced::widget::{Space, column, container, progress_bar, stack, svg};
+use iced::{Color, Element, Length, Vector};
 
 use super::crosshatch_background;
 use super::state::SplashState;
@@ -24,15 +24,14 @@ const BACKDROP_PADDING: f32 = 24.0;
 /// Renders the splash screen: centered banner with a drop shadow and a
 /// progress bar. The splash fades out before the transition to the main
 /// dashboard, driven by `SplashState::opacity`.
-pub fn view<'a>(state: &'a SplashState) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
+pub fn view<'a>(
+    state: &'a SplashState,
+) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
     // Hold a completely empty frame until the true window size (and thus the
     // scale factor) is known. Rendering nothing avoids any size-dependent
     // content at the wrong scale, which would cause a startup jump.
     if !state.is_ready() {
-        return Space::new()
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into();
+        return Space::new().width(Length::Fill).height(Length::Fill).into();
     }
 
     // Current fade opacity in the range 0.0..=1.0.
@@ -43,15 +42,14 @@ pub fn view<'a>(state: &'a SplashState) -> Element<'a, crate::modules::ui::mainw
         .opacity(opacity);
 
     // Wrap the banner in a container that carries a soft drop shadow.
-    let banner = container(logo_svg)
-        .style(move |_theme| container::Style {
-            shadow: iced::Shadow {
-                color: Color::from_rgba(0.0, 0.0, 0.0, 0.35).scale_alpha(opacity),
-                offset: Vector::new(0.0, 6.0),
-                blur_radius: crate::modules::ui::scaling::sp(20.0),
-            },
-            ..Default::default()
-        });
+    let banner = container(logo_svg).style(move |_theme| container::Style {
+        shadow: iced::Shadow {
+            color: Color::from_rgba(0.0, 0.0, 0.0, 0.35).scale_alpha(opacity),
+            offset: Vector::new(0.0, 6.0),
+            blur_radius: crate::modules::ui::scaling::sp(20.0),
+        },
+        ..Default::default()
+    });
 
     let bar = progress_bar(0.0..=1.0, state.progress())
         .length(Length::Fixed(crate::modules::ui::scaling::sp(LOGO_WIDTH)))

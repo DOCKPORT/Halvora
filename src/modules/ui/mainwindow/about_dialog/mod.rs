@@ -4,10 +4,10 @@
 //! with a centered, rounded card. Shows the app version, a short description,
 //! and the GitHub icon as a clickable link to the source repository.
 
-use iced::widget::{button, container, svg, text};
-use iced::{Color, ContentFit, Element, Length};
 use crate::modules::ui::mainwindow::application::Message;
 use crate::modules::ui::scaling::sp;
+use iced::widget::{button, container, svg, text};
+use iced::{Color, ContentFit, Element, Length};
 
 /// The GitHub icon SVG, embedded in the binary at compile time so the
 /// running program does not depend on any path on disk.
@@ -62,36 +62,38 @@ block subsidy.",
             text_color: Default::default(),
             snap: false,
         }),
-        button(
-            text("Close")
-                .size(sp(14.0))
-                .color(Color::WHITE),
-        )
-        .on_press(Message::CloseAboutDialog)
-        .padding(iced::Padding::new(sp(8.0)).horizontal(sp(16.0)))
-        .style(|_theme, _status| button::Style {
-            background: Some(iced::Background::Color(Color::from_rgb(0.3, 0.3, 0.3))),
-            border: iced::border::rounded(6),
-            shadow: Default::default(),
-            text_color: Default::default(),
-            snap: false,
-        }),
+        button(text("Close").size(sp(14.0)).color(Color::WHITE),)
+            .on_press(Message::CloseAboutDialog)
+            .padding(iced::Padding::new(sp(8.0)).horizontal(sp(16.0)))
+            .style(|_theme, _status| button::Style {
+                background: Some(iced::Background::Color(Color::from_rgb(0.3, 0.3, 0.3))),
+                border: iced::border::rounded(6),
+                shadow: Default::default(),
+                text_color: Default::default(),
+                snap: false,
+            }),
     ]
     .spacing(sp(12.0))
     .align_x(iced::Alignment::Center)
     .padding(sp(32.0));
 
-    container(container(inner).width(Length::Fixed(sp(440.0))).style(|_theme| container::Style {
-        background: Some(iced::Background::Color(Color::from_rgb(0.15, 0.15, 0.15))),
-        border: iced::border::rounded(12)
-            .color(Color::from_rgb(0.3, 0.3, 0.3))
-            .width(1.5),
-        ..Default::default()
-    }))
+    container(
+        container(inner)
+            .width(Length::Fixed(sp(440.0)))
+            .style(|_theme| container::Style {
+                background: Some(iced::Background::Color(Color::from_rgb(0.15, 0.15, 0.15))),
+                border: iced::border::rounded(12)
+                    .color(Color::from_rgb(0.3, 0.3, 0.3))
+                    .width(1.5),
+                ..Default::default()
+            }),
+    )
     .width(Length::Fill)
     .height(Length::Fill)
     .style(|_theme| container::Style {
-        background: Some(iced::Background::Color(Color::from_rgba(0.0, 0.0, 0.0, 0.6))),
+        background: Some(iced::Background::Color(Color::from_rgba(
+            0.0, 0.0, 0.0, 0.6,
+        ))),
         ..Default::default()
     })
     .align_x(iced::Alignment::Center)

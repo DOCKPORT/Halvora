@@ -27,9 +27,11 @@
 /// assert!((result.unwrap() - 106.66666666666667).abs() < 1e-10);
 /// ```
 pub fn cumulative_vwap(prices: &[(f64, f64)]) -> Option<f64> {
-    let (sum_pv, sum_v) = prices.iter().fold((0.0_f64, 0.0_f64), |(spv, sv), &(c, v)| {
-        (spv + c * v, sv + v)
-    });
+    let (sum_pv, sum_v) = prices
+        .iter()
+        .fold((0.0_f64, 0.0_f64), |(spv, sv), &(c, v)| {
+            (spv + c * v, sv + v)
+        });
 
     if sum_v == 0.0 {
         return None;

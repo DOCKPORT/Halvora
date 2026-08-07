@@ -1,8 +1,8 @@
 use futures_util::SinkExt;
 use futures_util::StreamExt;
+use iced::Subscription;
 use iced::futures::channel::mpsc;
 use iced::stream;
-use iced::Subscription;
 use serde::Deserialize;
 use std::time::Duration;
 use tokio_tungstenite::connect_async;
@@ -12,7 +12,8 @@ use tokio_tungstenite::tungstenite::Message;
 const WS_URL: &str = "wss://ws.bitstamp.net";
 
 /// Channel to subscribe to live BTC/USD trades.
-const SUBSCRIBE_MSG: &str = r#"{"event": "bts:subscribe", "data": {"channel": "live_trades_btcusd"}}"#;
+const SUBSCRIBE_MSG: &str =
+    r#"{"event": "bts:subscribe", "data": {"channel": "live_trades_btcusd"}}"#;
 
 /// Delay before reconnecting after a disconnect.
 const RECONNECT_DELAY_SECS: u64 = 5;

@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use std::fs;
+use std::path::PathBuf;
 
 /// Subdirectory constants for app data organisation.
 pub const MEMPOOL: &str = "Mempool";

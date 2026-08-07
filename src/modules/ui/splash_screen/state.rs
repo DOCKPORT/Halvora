@@ -27,8 +27,7 @@ impl SplashState {
 
     /// The total time from start until the splash is done, including the
     /// fade-in and fade-out.
-    pub const TOTAL_SECS: f32 =
-        Self::FADE_IN_SECS + Self::DURATION_SECS + Self::FADE_OUT_SECS;
+    pub const TOTAL_SECS: f32 = Self::FADE_IN_SECS + Self::DURATION_SECS + Self::FADE_OUT_SECS;
 
     /// Creates a new splash state with the given total duration.
     pub fn new(duration_secs: f32) -> Self {
@@ -106,7 +105,6 @@ impl SplashState {
                 .clamp(0.0, 1.0)
         }
     }
-
 }
 
 /// State for the main dashboard fade-in transition.

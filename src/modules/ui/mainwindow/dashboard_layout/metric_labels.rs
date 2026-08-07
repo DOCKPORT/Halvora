@@ -1,8 +1,8 @@
-use iced::widget::{container, text, Row};
-use iced::{Color, Element, Length};
 use crate::modules::compute::metrics::Metrics;
 use crate::modules::ui::scaling::sp;
 use crate::modules::ui::theme;
+use iced::widget::{Row, container, text};
+use iced::{Color, Element, Length};
 
 /// Line chart colours reused for P/L indicators.
 const GREEN_LINE: Color = Color::from_rgb(0.0, 0.8, 0.3);
@@ -38,12 +38,10 @@ fn metric_card<'a>(
 
     container(inner)
         .width(Length::Fill)
-        .style(move |_theme| {
-            container::Style {
-                background: background.map(iced::Background::Color),
-                border: iced::border::rounded(8),
-                ..Default::default()
-            }
+        .style(move |_theme| container::Style {
+            background: background.map(iced::Background::Color),
+            border: iced::border::rounded(8),
+            ..Default::default()
         })
         .into()
 }
@@ -82,12 +80,42 @@ pub fn view<'a>(
         });
 
     Row::with_children(vec![
-        metric_card("P/L", &metrics.p_l, p_l_color(&metrics.p_l), Some(theme::HALVING_BUTTON_BACKGROUND)),
-        metric_card("High", &metrics.high, theme::HALVING_BUTTON_TEXT, Some(theme::HALVING_BUTTON_BACKGROUND)),
-        metric_card("Low", &metrics.low, theme::HALVING_BUTTON_TEXT, Some(theme::HALVING_BUTTON_BACKGROUND)),
-        metric_card("Max Draw-Down", &metrics.draw_down, theme::HALVING_BUTTON_TEXT, Some(theme::HALVING_BUTTON_BACKGROUND)),
-        metric_card("Max Run-Up", &metrics.run_up, theme::HALVING_BUTTON_TEXT, Some(theme::HALVING_BUTTON_BACKGROUND)),
-        metric_card("Subsidy", subsidy, theme::HALVING_BUTTON_TEXT, Some(theme::HALVING_BUTTON_BACKGROUND)),
+        metric_card(
+            "P/L",
+            &metrics.p_l,
+            p_l_color(&metrics.p_l),
+            Some(theme::HALVING_BUTTON_BACKGROUND),
+        ),
+        metric_card(
+            "High",
+            &metrics.high,
+            theme::HALVING_BUTTON_TEXT,
+            Some(theme::HALVING_BUTTON_BACKGROUND),
+        ),
+        metric_card(
+            "Low",
+            &metrics.low,
+            theme::HALVING_BUTTON_TEXT,
+            Some(theme::HALVING_BUTTON_BACKGROUND),
+        ),
+        metric_card(
+            "Max Draw-Down",
+            &metrics.draw_down,
+            theme::HALVING_BUTTON_TEXT,
+            Some(theme::HALVING_BUTTON_BACKGROUND),
+        ),
+        metric_card(
+            "Max Run-Up",
+            &metrics.run_up,
+            theme::HALVING_BUTTON_TEXT,
+            Some(theme::HALVING_BUTTON_BACKGROUND),
+        ),
+        metric_card(
+            "Subsidy",
+            subsidy,
+            theme::HALVING_BUTTON_TEXT,
+            Some(theme::HALVING_BUTTON_BACKGROUND),
+        ),
         calmar_button.into(),
     ])
     .spacing(sp(8.0))

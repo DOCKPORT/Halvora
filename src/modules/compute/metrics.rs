@@ -163,12 +163,15 @@ pub fn compute(candles: &[Candle], live_price: Option<f64>) -> Metrics {
     //   3. Annualize: × 365
     //   4. Ratio = annualized return / (max_drawdown / 100)
     let (calmar, calmar_breakdown) = if candles.is_empty() || max_dd < 0.001 {
-        (dash.clone(), CalmarBreakdown {
-            weighted_avg_pl: dash.clone(),
-            annualized_return: dash.clone(),
-            max_drawdown: dash.clone(),
-            ratio: dash.clone(),
-        })
+        (
+            dash.clone(),
+            CalmarBreakdown {
+                weighted_avg_pl: dash.clone(),
+                annualized_return: dash.clone(),
+                max_drawdown: dash.clone(),
+                ratio: dash.clone(),
+            },
+        )
     } else {
         let mut weighted_sum = 0.0_f64;
         let mut total_vol = 0.0_f64;
@@ -180,23 +183,29 @@ pub fn compute(candles: &[Candle], live_price: Option<f64>) -> Metrics {
             }
         }
         if total_vol <= 0.0 {
-            (dash.clone(), CalmarBreakdown {
-                weighted_avg_pl: dash.clone(),
-                annualized_return: dash.clone(),
-                max_drawdown: dash.clone(),
-                ratio: dash.clone(),
-            })
+            (
+                dash.clone(),
+                CalmarBreakdown {
+                    weighted_avg_pl: dash.clone(),
+                    annualized_return: dash.clone(),
+                    max_drawdown: dash.clone(),
+                    ratio: dash.clone(),
+                },
+            )
         } else {
             let avg_daily_return = weighted_sum / total_vol;
             let annualized = avg_daily_return * 365.0;
             let ratio = annualized / (max_dd / 100.0);
             let calmar_str = format!("{:.2}", ratio);
-            (calmar_str.clone(), CalmarBreakdown {
-                weighted_avg_pl: format!("{:.4}%", avg_daily_return * 100.0),
-                annualized_return: format!("{:.2}%", annualized * 100.0),
-                max_drawdown: format!("{:.2}%", max_dd),
-                ratio: calmar_str,
-            })
+            (
+                calmar_str.clone(),
+                CalmarBreakdown {
+                    weighted_avg_pl: format!("{:.4}%", avg_daily_return * 100.0),
+                    annualized_return: format!("{:.2}%", annualized * 100.0),
+                    max_drawdown: format!("{:.2}%", max_dd),
+                    ratio: calmar_str,
+                },
+            )
         }
     };
 

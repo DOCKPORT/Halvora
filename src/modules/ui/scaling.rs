@@ -37,11 +37,10 @@ fn detect_screen_size() -> Size {
                 let _x = parts.next();
                 let _y = parts.next();
                 if let (Some(w), Some(h)) = (parts.next(), parts.next())
-                    && let (Ok(w), Ok(h)) =
-                        (w.trim().parse::<f32>(), h.trim().parse::<f32>())
-                    {
-                        return Size::new(w, h);
-                    }
+                    && let (Ok(w), Ok(h)) = (w.trim().parse::<f32>(), h.trim().parse::<f32>())
+                {
+                    return Size::new(w, h);
+                }
             }
         }
 
@@ -50,20 +49,17 @@ fn detect_screen_size() -> Size {
             let stdout = String::from_utf8_lossy(&output.stdout);
             for line in stdout.lines() {
                 if (line.contains(" primary") || line.contains('*'))
-                    && let Some(res) = line
-                        .split_whitespace()
-                        .find(|s| {
-                            s.contains('x')
-                                && s.chars().all(|c| c.is_ascii_digit() || c == 'x')
-                        }) {
-                        let parts: Vec<&str> = res.split('x').collect();
-                        if parts.len() == 2
-                            && let (Ok(w), Ok(h)) =
-                                (parts[0].parse::<f32>(), parts[1].parse::<f32>())
-                            {
-                                return Size::new(w, h);
-                            }
+                    && let Some(res) = line.split_whitespace().find(|s| {
+                        s.contains('x') && s.chars().all(|c| c.is_ascii_digit() || c == 'x')
+                    })
+                {
+                    let parts: Vec<&str> = res.split('x').collect();
+                    if parts.len() == 2
+                        && let (Ok(w), Ok(h)) = (parts[0].parse::<f32>(), parts[1].parse::<f32>())
+                    {
+                        return Size::new(w, h);
                     }
+                }
             }
         }
         Size::new(1024.0, 768.0)

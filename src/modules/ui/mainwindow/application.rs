@@ -1,20 +1,20 @@
-use iced::widget::{container, mouse_area, row, text};
-use iced::{Element, Subscription, window, Font, Length};
-use iced::window::Position;
-use rusqlite::Connection;
-use std::path::PathBuf;
-use std::time::{Duration, Instant};
 use crate::modules::compute::metrics::{Metrics, PLSign};
 use crate::modules::compute::year_over_year::Candle;
 use crate::modules::ui::line_chart::LineChartState;
-use crate::modules::ui::scaling::{sp, Scaling};
 use crate::modules::ui::mainwindow::about_dialog;
 use crate::modules::ui::mainwindow::app_icon;
 use crate::modules::ui::mainwindow::dashboard_layout::dashboard;
-use crate::modules::ui::mainwindow::sidebar::halving_sidebar;
 use crate::modules::ui::mainwindow::sidebar::blockchain_sidebar;
-use crate::modules::ui::splash_screen::state::{MainFadeInState, SplashState};
+use crate::modules::ui::mainwindow::sidebar::halving_sidebar;
+use crate::modules::ui::scaling::{Scaling, sp};
 use crate::modules::ui::splash_screen::splash;
+use crate::modules::ui::splash_screen::state::{MainFadeInState, SplashState};
+use iced::widget::{container, mouse_area, row, text};
+use iced::window::Position;
+use iced::{Element, Font, Length, Subscription, window};
+use rusqlite::Connection;
+use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
 /// Embed the GeistMono font as fallback — the system-installed SemiBold
 /// variant will be used via the Font weight setting.
@@ -163,10 +163,8 @@ impl Halvora {
     /// Recompute the YOY and all 32 halving signs, and re-detect the live
     /// halving. Called on startup, Tick, and NewDay (infrequent paths).
     fn refresh_halving_signs(state: &mut Self) {
-        state.yoy_pl_sign = crate::modules::compute::metrics::pl_sign(
-            &state.yoy_candles,
-            state.live_price,
-        );
+        state.yoy_pl_sign =
+            crate::modules::compute::metrics::pl_sign(&state.yoy_candles, state.live_price);
         state.halving_pl_signs = (0..=32)
             .map(|n| {
                 if n == 0 {
@@ -186,10 +184,8 @@ impl Halvora {
     /// websocket price tick to avoid 33 DB queries per update; completed
     /// halving signs are already stable.
     fn refresh_live_signs(state: &mut Self) {
-        state.yoy_pl_sign = crate::modules::compute::metrics::pl_sign(
-            &state.yoy_candles,
-            state.live_price,
-        );
+        state.yoy_pl_sign =
+            crate::modules::compute::metrics::pl_sign(&state.yoy_candles, state.live_price);
         if state.current_halving >= 1 && state.current_halving <= 32 {
             let n = state.current_halving as usize;
             let candles = crate::modules::compute::halving_period::halving_period_candles(n as u32);
@@ -202,11 +198,15 @@ impl Halvora {
         let current_tip_height = Self::load_tip_height();
         let current_subsidy_sat = Self::load_current_subsidy();
         let mining_difficulty = Self::load_mining_difficulty();
-        let next_halving_eta = crate::modules::compute::halving_eta::next_halving_eta(current_tip_height);
-        let blocks_to_next_halving = crate::modules::compute::halving_eta::blocks_to_next_halving(current_tip_height);
+        let next_halving_eta =
+            crate::modules::compute::halving_eta::next_halving_eta(current_tip_height);
+        let blocks_to_next_halving =
+            crate::modules::compute::halving_eta::blocks_to_next_halving(current_tip_height);
         let coins_issued = crate::modules::compute::coins_issued::coins_issued(current_tip_height);
-        let percentage_issued = crate::modules::compute::coins_issued::percentage_issued(current_tip_height);
-        let remaining_issuance = crate::modules::compute::coins_issued::remaining_issuance(current_tip_height);
+        let percentage_issued =
+            crate::modules::compute::coins_issued::percentage_issued(current_tip_height);
+        let remaining_issuance =
+            crate::modules::compute::coins_issued::remaining_issuance(current_tip_height);
 
         let candles = crate::modules::compute::year_over_year::trailing_365_candles();
 
@@ -219,7 +219,8 @@ impl Halvora {
         // Compute the startup metrics and sidebar values from the seeded price
         // so the dashboard is fully populated when it first appears.
         let metrics = crate::modules::compute::metrics::compute(&candles, seeded_price);
-        let subsidy_value = crate::modules::compute::price_stats::subsidy_value(seeded_price, current_subsidy_sat);
+        let subsidy_value =
+            crate::modules::compute::price_stats::subsidy_value(seeded_price, current_subsidy_sat);
         let sats_per_usd = crate::modules::compute::price_stats::sats_per_usd(seeded_price);
 
         let mut state = Self {
@@ -264,13 +265,13 @@ impl Halvora {
         let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
         let db_path = base.join("Halvora").join("Mempool").join("blocks.db");
         if let Ok(conn) = Connection::open(&db_path)
-            && let Ok(height) = conn.query_row(
-                "SELECT height FROM current_tip LIMIT 1",
-                [],
-                |row| row.get(0),
-            ) {
-                return height;
-            }
+            && let Ok(height) =
+                conn.query_row("SELECT height FROM current_tip LIMIT 1", [], |row| {
+                    row.get(0)
+                })
+        {
+            return height;
+        }
         0
     }
 
@@ -279,13 +280,13 @@ impl Halvora {
         let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
         let db_path = base.join("Halvora").join("Mempool").join("blocks.db");
         if let Ok(conn) = Connection::open(&db_path)
-            && let Ok(subsidy) = conn.query_row(
-                "SELECT subsidy FROM current_tip LIMIT 1",
-                [],
-                |row| row.get(0),
-            ) {
-                return subsidy;
-            }
+            && let Ok(subsidy) =
+                conn.query_row("SELECT subsidy FROM current_tip LIMIT 1", [], |row| {
+                    row.get(0)
+                })
+        {
+            return subsidy;
+        }
         0
     }
 
@@ -294,13 +295,13 @@ impl Halvora {
         let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
         let db_path = base.join("Halvora").join("Mempool").join("blocks.db");
         if let Ok(conn) = Connection::open(&db_path)
-            && let Ok(difficulty) = conn.query_row(
-                "SELECT difficulty FROM current_tip LIMIT 1",
-                [],
-                |row| row.get(0),
-            ) {
-                return difficulty;
-            }
+            && let Ok(difficulty) =
+                conn.query_row("SELECT difficulty FROM current_tip LIMIT 1", [], |row| {
+                    row.get(0)
+                })
+        {
+            return difficulty;
+        }
         0.0
     }
 }
@@ -351,9 +352,7 @@ fn subscription(state: &Halvora) -> Subscription<Message> {
     // While a websocket price flash is active, tick frequently so it can expire
     // after ~1 second and the Spot Price value returns to its normal color.
     if state.ws_flash.is_some() {
-        subs.push(
-            iced::time::every(Duration::from_millis(100)).map(|_| Message::WsFlashTick),
-        );
+        subs.push(iced::time::every(Duration::from_millis(100)).map(|_| Message::WsFlashTick));
     }
 
     // While a window resize is pending, poll so the scale factor can be applied
@@ -369,9 +368,7 @@ fn subscription(state: &Halvora) -> Subscription<Message> {
     // fast fixed interval (~125fps) to keep the fade-in, fade-out, and
     // progress bar animations smooth.
     if matches!(state.phase, AppPhase::Splash(_) | AppPhase::MainFadeIn(_)) {
-        subs.push(
-            iced::time::every(Duration::from_millis(8)).map(|_| Message::SplashTick),
-        );
+        subs.push(iced::time::every(Duration::from_millis(8)).map(|_| Message::SplashTick));
     }
 
     Subscription::batch(subs)
@@ -399,9 +396,8 @@ fn update(state: &mut Halvora, message: Message) {
             };
             s.advance(elapsed);
             if s.is_finished() {
-                state.phase = AppPhase::MainFadeIn(MainFadeInState::new(
-                    MainFadeInState::FADE_IN_SECS,
-                ));
+                state.phase =
+                    AppPhase::MainFadeIn(MainFadeInState::new(MainFadeInState::FADE_IN_SECS));
             }
             return;
         }
@@ -426,24 +422,23 @@ fn update(state: &mut Halvora, message: Message) {
             state.yoy_selected = false;
             // Show the block range in the top-left only for started halvings
             // (past or current), determined from the live halving data.
-            state.line_chart_state.block_range.set(
-                if n <= state.current_halving {
+            state
+                .line_chart_state
+                .block_range
+                .set(if n <= state.current_halving {
                     crate::modules::compute::halving_period::halving_block_range(n)
                 } else {
                     None
-                },
-            );
+                });
             // Record the ETA and subsidy for a future halving page.
-            state.selected_halving_eta =
-                Some(crate::modules::compute::halving_eta::halving_eta(
-                    state.current_tip_height,
-                    n,
-                ));
+            state.selected_halving_eta = Some(crate::modules::compute::halving_eta::halving_eta(
+                state.current_tip_height,
+                n,
+            ));
             state.selected_halving_subsidy =
                 Some(crate::modules::compute::halving_period::halving_subsidy_btc(n));
             // The metric bar shows this halving's subsidy.
-            state.subsidy_label =
-                crate::modules::compute::halving_period::halving_subsidy_btc(n);
+            state.subsidy_label = crate::modules::compute::halving_period::halving_subsidy_btc(n);
             // Load this halving period's candles. Future halvings return an
             // empty set, so `metrics::compute` naturally produces dashes.
             // Use set_candles so the drawing tool and drawings are preserved.
@@ -458,15 +453,16 @@ fn update(state: &mut Halvora, message: Message) {
                     .unwrap_or(0);
                 let today_midnight = now - (now % 86_400);
                 if let Some(last) = candles.last_mut()
-                    && last.timestamp == today_midnight {
-                        last.close = price;
-                        if price > last.high {
-                            last.high = price;
-                        }
-                        if price < last.low {
-                            last.low = price;
-                        }
+                    && last.timestamp == today_midnight
+                {
+                    last.close = price;
+                    if price > last.high {
+                        last.high = price;
                     }
+                    if price < last.low {
+                        last.low = price;
+                    }
+                }
             }
             state.line_chart_state.set_candles(candles);
             state.metrics = crate::modules::compute::metrics::compute(
@@ -485,13 +481,14 @@ fn update(state: &mut Halvora, message: Message) {
             state.selected_halving_eta = None;
             state.selected_halving_subsidy = None;
             // Metric bar shows the current tip subsidy on YOY.
-            state.subsidy_label =
-                crate::modules::compute::halving_period::subsidy_btc_from_sat(
-                    state.current_subsidy_sat,
-                );
+            state.subsidy_label = crate::modules::compute::halving_period::subsidy_btc_from_sat(
+                state.current_subsidy_sat,
+            );
             // Restore the cached YOY candles and recompute metrics for them.
             // Use set_candles so drawings are preserved across page switches.
-            state.line_chart_state.set_candles(state.yoy_candles.clone());
+            state
+                .line_chart_state
+                .set_candles(state.yoy_candles.clone());
             state.metrics = crate::modules::compute::metrics::compute(
                 &state.line_chart_state.candles,
                 state.live_price,
@@ -507,27 +504,31 @@ fn update(state: &mut Halvora, message: Message) {
                 state.subsidy_label =
                     crate::modules::compute::halving_period::halving_subsidy_btc(n);
             } else {
-                state.subsidy_label =
-                    crate::modules::compute::halving_period::subsidy_btc_from_sat(
-                        state.current_subsidy_sat,
-                    );
+                state.subsidy_label = crate::modules::compute::halving_period::subsidy_btc_from_sat(
+                    state.current_subsidy_sat,
+                );
             }
-            state.next_halving_eta = crate::modules::compute::halving_eta::next_halving_eta(state.current_tip_height);
-            state.blocks_to_next_halving = crate::modules::compute::halving_eta::blocks_to_next_halving(state.current_tip_height);
+            state.next_halving_eta =
+                crate::modules::compute::halving_eta::next_halving_eta(state.current_tip_height);
+            state.blocks_to_next_halving =
+                crate::modules::compute::halving_eta::blocks_to_next_halving(
+                    state.current_tip_height,
+                );
             // Keep the selected halving's ETA and subsidy current. The tip
             // advances and the live price may change.
             if let Some(n) = state.selected_halving {
-                state.selected_halving_eta =
-                    Some(crate::modules::compute::halving_eta::halving_eta(
-                        state.current_tip_height,
-                        n,
-                    ));
+                state.selected_halving_eta = Some(
+                    crate::modules::compute::halving_eta::halving_eta(state.current_tip_height, n),
+                );
                 state.selected_halving_subsidy =
                     Some(crate::modules::compute::halving_period::halving_subsidy_btc(n));
             }
-            state.coins_issued = crate::modules::compute::coins_issued::coins_issued(state.current_tip_height);
-            state.percentage_issued = crate::modules::compute::coins_issued::percentage_issued(state.current_tip_height);
-            state.remaining_issuance = crate::modules::compute::coins_issued::remaining_issuance(state.current_tip_height);
+            state.coins_issued =
+                crate::modules::compute::coins_issued::coins_issued(state.current_tip_height);
+            state.percentage_issued =
+                crate::modules::compute::coins_issued::percentage_issued(state.current_tip_height);
+            state.remaining_issuance =
+                crate::modules::compute::coins_issued::remaining_issuance(state.current_tip_height);
             // The tip may have advanced into a new live halving, so refresh
             // all signs and re-detect the live halving.
             Halvora::refresh_halving_signs(state);
@@ -541,7 +542,9 @@ fn update(state: &mut Halvora, message: Message) {
                 // Only refresh the active page when YOY is selected; halving
                 // pages keep their empty candle set and dash metrics.
                 if state.yoy_selected {
-                    state.line_chart_state.set_candles(state.yoy_candles.clone());
+                    state
+                        .line_chart_state
+                        .set_candles(state.yoy_candles.clone());
                     state.metrics = crate::modules::compute::metrics::compute(
                         &state.line_chart_state.candles,
                         Halvora::metric_current_price(state),
@@ -552,17 +555,21 @@ fn update(state: &mut Halvora, message: Message) {
         Message::WsFlashTick => {
             // Expire the websocket flash once its 1-second window has elapsed.
             if let Some(flash) = &state.ws_flash
-                && !flash.is_active(std::time::Instant::now()) {
-                    state.ws_flash = None;
-                    state.line_chart_state.ws_flash.set(None);
-                }
+                && !flash.is_active(std::time::Instant::now())
+            {
+                state.ws_flash = None;
+                state.line_chart_state.ws_flash.set(None);
+            }
         }
         Message::LivePrice(price) => {
             let flash = crate::modules::ui::ws_flash::WsFlash::from_tick(state.live_price, price);
             state.ws_flash = flash;
             state.line_chart_state.ws_flash.set(flash);
             state.live_price = Some(price);
-            state.subsidy_value = crate::modules::compute::price_stats::subsidy_value(Some(price), state.current_subsidy_sat);
+            state.subsidy_value = crate::modules::compute::price_stats::subsidy_value(
+                Some(price),
+                state.current_subsidy_sat,
+            );
             state.sats_per_usd = crate::modules::compute::price_stats::sats_per_usd(Some(price));
             state.all_time_high = crate::modules::compute::price_stats::all_time_high(Some(price));
 
@@ -573,24 +580,36 @@ fn update(state: &mut Halvora, message: Message) {
                 .unwrap_or(0);
             let today_midnight = now - (now % 86_400);
             if let Some(last) = state.yoy_candles.last_mut()
-                && last.timestamp == today_midnight {
-                    if price > last.high { last.high = price; }
-                    if price < last.low  { last.low = price; }
-                    last.close = price;
+                && last.timestamp == today_midnight
+            {
+                if price > last.high {
+                    last.high = price;
                 }
+                if price < last.low {
+                    last.low = price;
+                }
+                last.close = price;
+            }
 
             // Update the active page's chart state. This covers both YOY and
             // the live halving period (which ends at today). Completed halving
             // periods have no today candle, so the update is a no-op for them.
             if state.yoy_selected {
-                state.line_chart_state.set_candles(state.yoy_candles.clone());
+                state
+                    .line_chart_state
+                    .set_candles(state.yoy_candles.clone());
             }
             if let Some(last) = state.line_chart_state.candles.last_mut()
-                && last.timestamp == today_midnight {
-                    if price > last.high { last.high = price; }
-                    if price < last.low  { last.low = price; }
-                    last.close = price;
+                && last.timestamp == today_midnight
+            {
+                if price > last.high {
+                    last.high = price;
                 }
+                if price < last.low {
+                    last.low = price;
+                }
+                last.close = price;
+            }
             state.metrics = crate::modules::compute::metrics::compute(
                 &state.line_chart_state.candles,
                 Halvora::metric_current_price(state),
@@ -623,11 +642,15 @@ fn update(state: &mut Halvora, message: Message) {
             state.line_chart_state.dialog_open.set(false);
         }
         Message::SelectAVWAP => {
-            state.line_chart_state.drawing_mode
+            state
+                .line_chart_state
+                .drawing_mode
                 .set(crate::modules::ui::line_chart::state::DrawingMode::AVWAP);
         }
         Message::SelectRange => {
-            state.line_chart_state.drawing_mode
+            state
+                .line_chart_state
+                .drawing_mode
                 .set(crate::modules::ui::line_chart::state::DrawingMode::Range);
         }
         Message::WindowResized(size) => {
@@ -651,11 +674,12 @@ fn update(state: &mut Halvora, message: Message) {
         Message::ResizePoll => {
             // Apply the pending resize once the user pauses the drag.
             if let Some((size, last)) = state.pending_resize
-                && last.elapsed() >= RESIZE_SETTLE_MS {
-                    crate::modules::ui::scaling::Scaling::global()
-                        .set_window_size(size.width, size.height);
-                    state.pending_resize = None;
-                }
+                && last.elapsed() >= RESIZE_SETTLE_MS
+            {
+                crate::modules::ui::scaling::Scaling::global()
+                    .set_window_size(size.width, size.height);
+                state.pending_resize = None;
+            }
         }
         Message::SplashTick | Message::EnterMain => {
             // Handled above; unreachable once the phase is Main.
@@ -671,7 +695,9 @@ fn update(state: &mut Halvora, message: Message) {
             // Only refresh the active page when YOY is selected; halving
             // pages keep their empty candle set and dash metrics.
             if state.yoy_selected {
-                state.line_chart_state.set_candles(state.yoy_candles.clone());
+                state
+                    .line_chart_state
+                    .set_candles(state.yoy_candles.clone());
                 state.metrics = crate::modules::compute::metrics::compute(
                     &state.line_chart_state.candles,
                     state.live_price,
@@ -715,7 +741,21 @@ fn view(state: &Halvora) -> Element<'_, Message> {
             &state.line_chart_state,
             &state.metrics,
         ),
-        blockchain_sidebar::view(state.current_tip_height, state.current_subsidy_sat, state.mining_difficulty, &state.next_halving_eta, &state.blocks_to_next_halving, &state.coins_issued, &state.percentage_issued, &state.remaining_issuance, state.live_price, spot_flash, &state.subsidy_value, &state.sats_per_usd, &state.all_time_high),
+        blockchain_sidebar::view(
+            state.current_tip_height,
+            state.current_subsidy_sat,
+            state.mining_difficulty,
+            &state.next_halving_eta,
+            &state.blocks_to_next_halving,
+            &state.coins_issued,
+            &state.percentage_issued,
+            &state.remaining_issuance,
+            state.live_price,
+            spot_flash,
+            &state.subsidy_value,
+            &state.sats_per_usd,
+            &state.all_time_high
+        ),
     ]
     .width(Length::Fill)
     .height(Length::Fill)
@@ -759,36 +799,46 @@ fn view(state: &Halvora) -> Element<'_, Message> {
                         .size(sp(12.0))
                         .color(iced::Color::from_rgb(0.4, 0.4, 0.4))
                         .font(iced::Font::with_name("Geist Mono")),
-                    text(format!("Weighted Avg P/L:  {}", &state.metrics.calmar_breakdown.weighted_avg_pl))
-                        .size(sp(14.0))
-                        .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
-                        .font(iced::Font::with_name("Geist Mono")),
-                    text(format!("Annualized Return:  {}", &state.metrics.calmar_breakdown.annualized_return))
-                        .size(sp(14.0))
-                        .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
-                        .font(iced::Font::with_name("Geist Mono")),
-                    text(format!("Max Drawdown:  {}", &state.metrics.calmar_breakdown.max_drawdown))
-                        .size(sp(14.0))
-                        .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
-                        .font(iced::Font::with_name("Geist Mono")),
-                    text(format!("Calmar Ratio:  {}", &state.metrics.calmar_breakdown.ratio))
-                        .size(sp(14.0))
-                        .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
-                        .font(iced::Font::with_name("Geist Mono")),
-                    iced::widget::button(
-                        text("Close")
-                            .size(sp(14.0))
-                            .color(iced::Color::WHITE)
-                    )
-                    .on_press(Message::CloseCalmarDialog)
-                    .padding(iced::Padding::new(sp(8.0)).horizontal(sp(16.0)))
-                    .style(|_theme, _status| iced::widget::button::Style {
-                        background: Some(iced::Background::Color(iced::Color::from_rgb(0.3, 0.3, 0.3))),
-                        border: iced::border::rounded(6),
-                        shadow: Default::default(),
-                        text_color: Default::default(),
-                        snap: false,
-                    }),
+                    text(format!(
+                        "Weighted Avg P/L:  {}",
+                        &state.metrics.calmar_breakdown.weighted_avg_pl
+                    ))
+                    .size(sp(14.0))
+                    .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
+                    .font(iced::Font::with_name("Geist Mono")),
+                    text(format!(
+                        "Annualized Return:  {}",
+                        &state.metrics.calmar_breakdown.annualized_return
+                    ))
+                    .size(sp(14.0))
+                    .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
+                    .font(iced::Font::with_name("Geist Mono")),
+                    text(format!(
+                        "Max Drawdown:  {}",
+                        &state.metrics.calmar_breakdown.max_drawdown
+                    ))
+                    .size(sp(14.0))
+                    .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
+                    .font(iced::Font::with_name("Geist Mono")),
+                    text(format!(
+                        "Calmar Ratio:  {}",
+                        &state.metrics.calmar_breakdown.ratio
+                    ))
+                    .size(sp(14.0))
+                    .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
+                    .font(iced::Font::with_name("Geist Mono")),
+                    iced::widget::button(text("Close").size(sp(14.0)).color(iced::Color::WHITE))
+                        .on_press(Message::CloseCalmarDialog)
+                        .padding(iced::Padding::new(sp(8.0)).horizontal(sp(16.0)))
+                        .style(|_theme, _status| iced::widget::button::Style {
+                            background: Some(iced::Background::Color(iced::Color::from_rgb(
+                                0.3, 0.3, 0.3
+                            ))),
+                            border: iced::border::rounded(6),
+                            shadow: Default::default(),
+                            text_color: Default::default(),
+                            snap: false,
+                        }),
                 ]
                 .spacing(sp(12.0))
                 .align_x(iced::Alignment::Center)
@@ -796,7 +846,9 @@ fn view(state: &Halvora) -> Element<'_, Message> {
             )
             .width(Length::Fixed(sp(400.0)))
             .style(|_theme| container::Style {
-                background: Some(iced::Background::Color(iced::Color::from_rgb(0.15, 0.15, 0.15))),
+                background: Some(iced::Background::Color(iced::Color::from_rgb(
+                    0.15, 0.15, 0.15,
+                ))),
                 border: iced::border::rounded(12)
                     .color(iced::Color::from_rgb(0.3, 0.3, 0.3))
                     .width(1.5),
@@ -806,7 +858,9 @@ fn view(state: &Halvora) -> Element<'_, Message> {
         .width(Length::Fill)
         .height(Length::Fill)
         .style(|_theme| container::Style {
-            background: Some(iced::Background::Color(iced::Color::from_rgba(0.0, 0.0, 0.0, 0.6))),
+            background: Some(iced::Background::Color(iced::Color::from_rgba(
+                0.0, 0.0, 0.0, 0.6,
+            ))),
             ..Default::default()
         })
         .align_x(iced::Alignment::Center)
@@ -831,10 +885,7 @@ fn view(state: &Halvora) -> Element<'_, Message> {
 /// Layers a dark, semi-transparent overlay on top of `content` to produce
 /// a smooth fade-in. `opacity` is the overlay alpha (1.0 opaque → 0.0
 /// transparent).
-fn fade_overlay<'a>(
-    content: Element<'a, Message>,
-    opacity: f32,
-) -> Element<'a, Message> {
+fn fade_overlay<'a>(content: Element<'a, Message>, opacity: f32) -> Element<'a, Message> {
     let overlay = container(iced::widget::Space::new())
         .width(Length::Fill)
         .height(Length::Fill)

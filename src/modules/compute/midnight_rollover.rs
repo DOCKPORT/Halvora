@@ -1,7 +1,7 @@
 use futures_util::SinkExt;
+use iced::Subscription;
 use iced::futures::channel::mpsc;
 use iced::stream;
-use iced::Subscription;
 use std::time::Duration;
 
 /// Detects when a new UTC day starts and yields the new day's midnight timestamp

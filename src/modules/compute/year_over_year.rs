@@ -30,7 +30,7 @@ pub fn trailing_365_candles() -> Vec<Candle> {
         "SELECT timestamp, open, high, low, close, volume
          FROM daily_candles
          WHERE timestamp >= (SELECT MAX(timestamp) FROM daily_candles) - 365 * 86400
-         ORDER BY timestamp ASC"
+         ORDER BY timestamp ASC",
     ) {
         Ok(s) => s,
         Err(e) => {
