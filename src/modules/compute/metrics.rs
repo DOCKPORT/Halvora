@@ -63,8 +63,10 @@ pub fn compute(candles: &[Candle], live_price: Option<f64>) -> Metrics {
     // Negative, both `live_price` and `candles.first()` are `Some` and the
     // first close is non-zero, so computing `change` up front is safe.
     //  ▲ for positive, ▼ for negative, — for zero.
-    let change = if matches!(pl_sign(candles, live_price), PLSign::Positive | PLSign::Negative)
-    {
+    let change = if matches!(
+        pl_sign(candles, live_price),
+        PLSign::Positive | PLSign::Negative
+    ) {
         (live_price.unwrap() - candles.first().unwrap().close) / candles.first().unwrap().close
             * 100.0
     } else {
