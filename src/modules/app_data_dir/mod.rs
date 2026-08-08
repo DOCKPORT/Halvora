@@ -5,6 +5,12 @@ use std::path::PathBuf;
 pub const MEMPOOL: &str = "Mempool";
 pub const EXCHANGE: &str = "Exchange";
 
+/// Path to the BTC/USD daily candle database (`daily_candles` table).
+pub fn btcusd_db_path() -> PathBuf {
+    let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
+    base.join("Halvora").join(EXCHANGE).join("btcusd.db")
+}
+
 /// Ensure the app data directory tree at `~/.local/share/Halvora/` exists.
 /// Creates `Halvora/`, `Halvora/Mempool/`, and `Halvora/Exchange/`.
 /// Returns the base path if successful, or logs a warning otherwise.

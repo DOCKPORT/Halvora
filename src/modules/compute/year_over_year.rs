@@ -1,5 +1,5 @@
+use crate::modules::app_data_dir::btcusd_db_path;
 use rusqlite::Connection;
-use std::path::PathBuf;
 
 /// A single daily OHLC candle.
 #[derive(Debug, Clone, Copy)]
@@ -17,8 +17,7 @@ pub struct Candle {
 /// Returns candles ordered by timestamp ascending. The range is computed
 /// as: `[latest_timestamp - 364 days, latest_timestamp]`.
 pub fn trailing_365_candles() -> Vec<Candle> {
-    let db_path = db_path();
-    let conn = match Connection::open(&db_path) {
+    let conn = match Connection::open(btcusd_db_path()) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("[year_over_year] failed to open database: {e}");
@@ -57,9 +56,4 @@ pub fn trailing_365_candles() -> Vec<Candle> {
     };
 
     candles
-}
-
-fn db_path() -> PathBuf {
-    let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
-    base.join("Halvora").join("Exchange").join("btcusd.db")
 }

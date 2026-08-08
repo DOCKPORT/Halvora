@@ -75,7 +75,6 @@ fn detect_screen_size() -> Size {
 ///
 /// The factor is stored atomically so it can be updated while the application
 /// runs, for example when the user resizes the window.
-#[allow(dead_code)]
 pub struct Scaling {
     /// The detected screen size, used once to set the initial window.
     pub screen_size: Size,

@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, NaiveDateTime, Utc};
+use chrono::{DateTime, Datelike, NaiveDate, NaiveTime, Utc};
 
 /// A tick mark with its data-space position and formatted label.
 #[derive(Debug, Clone)]
@@ -86,17 +86,16 @@ pub fn x_ticks(min_ts: f64, max_ts: f64) -> Vec<Tick> {
 
     loop {
         // Build the first day of this month at 00:00:00 UTC
-        let tick_str = format!("{year}-{month:02}-01T00:00:00");
-        let tick_naive =
-            if let Ok(dt) = NaiveDateTime::parse_from_str(&tick_str, "%Y-%m-%dT%H:%M:%S") {
-                dt
-            } else {
+        let tick_naive = match NaiveDate::from_ymd_opt(year, month, 1) {
+            Some(day1) => day1.and_time(NaiveTime::default()),
+            None => {
                 advance_month(&mut year, &mut month);
                 if past_end(year, month, &max_dt) {
                     break;
                 }
                 continue;
-            };
+            }
+        };
         let tick_dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(tick_naive, Utc);
 
         if tick_dt > max_dt {
@@ -178,9 +177,11 @@ fn quarter_boundaries(min_ts: f64, max_ts: f64) -> Vec<QuarterBoundary> {
             break;
         }
 
-        let tick_str = format!("{year:04}-{qm:02}-01T00:00:00");
-        if let Ok(tick_naive) = NaiveDateTime::parse_from_str(&tick_str, "%Y-%m-%dT%H:%M:%S") {
-            let tick_dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(tick_naive, Utc);
+        if let Some(day1) = NaiveDate::from_ymd_opt(year, qm, 1) {
+            let tick_dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(
+                day1.and_time(NaiveTime::default()),
+                Utc,
+            );
             if tick_dt >= min_dt && tick_dt <= max_dt {
                 boundaries.push(QuarterBoundary {
                     position: tick_dt.timestamp() as f64,

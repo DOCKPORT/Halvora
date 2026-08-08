@@ -69,10 +69,11 @@ impl LineChartState {
         }
     }
 
-    /// Replace the candle data in place, preserving the drawing tool mode,
-    /// anchored VWAPs, and range annotations.
-    /// Use this instead of `new()` when only the underlying data changes,
-    /// so user drawings and the selected tool are not reset.
+    /// Replace the candle data in place.
+    ///
+    /// Does not reset the drawing tool mode, anchored VWAPs, or range
+    /// annotations, so user drawings survive a data change. Use this instead
+    /// of `new()` when only the underlying data changes.
     pub fn set_candles(&mut self, candles: Vec<Candle>) {
         self.candles = candles;
     }

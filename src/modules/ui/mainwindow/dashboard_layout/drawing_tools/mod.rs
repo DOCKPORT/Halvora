@@ -1,4 +1,4 @@
-use crate::modules::compute::vwap::progressive_vwap;
+use crate::modules::compute::vwap::anchored_vwap;
 use crate::modules::compute::year_over_year::Candle;
 use crate::modules::ui::line_chart::state::{DrawingMode, LineChartState, RangeBox};
 use crate::modules::ui::scaling::sp;
@@ -105,7 +105,7 @@ pub fn draw_anchored_vwaps(
         let sub_candles = &candles[anchor_idx..];
         let pairs: Vec<(f64, f64)> = sub_candles.iter().map(|c| (c.close, c.volume)).collect();
 
-        let vwaps = progressive_vwap(&pairs);
+        let vwaps = anchored_vwap(&pairs);
 
         let points: Vec<(f64, f64)> = sub_candles
             .iter()
@@ -157,7 +157,7 @@ pub fn hit_test_anchored_vwaps(
 
         let sub_candles = &candles[anchor_idx..];
         let pairs: Vec<(f64, f64)> = sub_candles.iter().map(|c| (c.close, c.volume)).collect();
-        let vwaps = progressive_vwap(&pairs);
+        let vwaps = anchored_vwap(&pairs);
 
         let mut prev_pt: Option<(f64, f64)> = None;
         for (c, v) in sub_candles.iter().zip(vwaps.iter()) {

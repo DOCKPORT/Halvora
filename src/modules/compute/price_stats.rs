@@ -1,28 +1,9 @@
+use crate::modules::app_data_dir::btcusd_db_path;
 use rusqlite::Connection;
-use std::path::PathBuf;
 use std::sync::OnceLock;
 
-/// Format a number with thousands commas and 2 fixed decimal places.
-fn fmt_usd(value: f64) -> String {
-    let whole = value.trunc() as u64;
-    let cents = ((value - value.trunc()) * 100.0).round() as u64;
-
-    let whole_str = whole.to_string();
-    let mut result = String::with_capacity(whole_str.len() + whole_str.len() / 3 + 3);
-    for (i, c) in whole_str.chars().enumerate() {
-        if i > 0 && (whole_str.len() - i).is_multiple_of(3) {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.push('.');
-    result.push_str(&format!("{cents:02}"));
-    result
-}
-
-/// Format a number with thousands commas (no decimal places).
-fn fmt_whole(value: f64) -> String {
-    let whole = value.round() as u64;
+/// Insert thousands commas into an unsigned integer's decimal string.
+fn group_thousands(whole: u64) -> String {
     let s = whole.to_string();
     let mut result = String::with_capacity(s.len() + s.len() / 3);
     for (i, c) in s.chars().enumerate() {
@@ -32,6 +13,24 @@ fn fmt_whole(value: f64) -> String {
         result.push(c);
     }
     result
+}
+
+/// Format a number with thousands commas and 2 fixed decimal places.
+fn fmt_usd(value: f64) -> String {
+    let whole = value.trunc() as u64;
+    let cents = ((value - value.trunc()) * 100.0).round() as u64;
+
+    let mut grouped = group_thousands(whole);
+    // `.` plus two cents digits.
+    grouped.reserve(3);
+    grouped.push('.');
+    grouped.push_str(&format!("{cents:02}"));
+    grouped
+}
+
+/// Format a number with thousands commas (no decimal places).
+fn fmt_whole(value: f64) -> String {
+    group_thousands(value.round() as u64)
 }
 
 /// Compute the current USD value of the block subsidy.
@@ -75,8 +74,7 @@ pub fn sats_per_usd(live_price: Option<f64>) -> String {
 fn db_all_time_high() -> Option<f64> {
     static CACHED: OnceLock<Option<f64>> = OnceLock::new();
     *CACHED.get_or_init(|| {
-        let db_path = db_path();
-        let conn = Connection::open(&db_path).ok()?;
+        let conn = Connection::open(btcusd_db_path()).ok()?;
         conn.query_row("SELECT MAX(high) FROM daily_candles", [], |row| row.get(0))
             .ok()
             .flatten()
@@ -101,10 +99,4 @@ pub fn all_time_high(live_price: Option<f64>) -> String {
     };
 
     format!("${}", fmt_usd(effective))
-}
-
-/// Return the path to the BTC/USD OHLC database.
-fn db_path() -> PathBuf {
-    let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
-    base.join("Halvora").join("Exchange").join("btcusd.db")
 }

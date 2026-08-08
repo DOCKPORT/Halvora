@@ -63,16 +63,14 @@ pub fn compute(candles: &[Candle], live_price: Option<f64>) -> Metrics {
     // Negative, both `live_price` and `candles.first()` are `Some` and the
     // first close is non-zero, so computing `change` up front is safe.
     //  ▲ for positive, ▼ for negative, — for zero.
-    let change = if matches!(
-        pl_sign(candles, live_price),
-        PLSign::Positive | PLSign::Negative
-    ) {
+    let pl = pl_sign(candles, live_price);
+    let change = if matches!(pl, PLSign::Positive | PLSign::Negative) {
         (live_price.unwrap() - candles.first().unwrap().close) / candles.first().unwrap().close
             * 100.0
     } else {
         0.0
     };
-    let p_l = match pl_sign(candles, live_price) {
+    let p_l = match pl {
         PLSign::Positive => format!("\u{25B2} {change:.2}%"),
         PLSign::Negative => format!("\u{25BC} {:.2}%", -change),
         PLSign::NoChange => dash.clone(),

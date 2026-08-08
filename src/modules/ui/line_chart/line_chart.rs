@@ -8,7 +8,7 @@ use iced::{Color, Element, Length, Point, Rectangle, Renderer, Theme};
 
 use super::axis;
 use super::state::LineChartState;
-use crate::modules::compute::vwap::progressive_vwap;
+use crate::modules::compute::vwap::anchored_vwap;
 use crate::modules::compute::year_over_year::Candle;
 use crate::modules::ui::mainwindow::dashboard_layout::drawing_tools;
 use crate::modules::ui::scaling::sp;
@@ -34,18 +34,6 @@ impl<'a> LineChart<'a> {
             width: Length::Fill,
             height: Length::Fill,
         }
-    }
-
-    #[allow(dead_code)]
-    pub fn width(mut self, width: Length) -> Self {
-        self.width = width;
-        self
-    }
-
-    #[allow(dead_code)]
-    pub fn height(mut self, height: Length) -> Self {
-        self.height = height;
-        self
     }
 }
 
@@ -118,7 +106,7 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
             y_max,
         );
 
-        // 5. Progressive VWAP line (white, on top of price line)
+        // 5. Anchored VWAP line (white, on top of price line)
         draw_vwap_line(
             &mut frame,
             &plot,
@@ -389,12 +377,6 @@ fn screen_x_to_data(screen_x: f32, x_min: f64, x_max: f64, plot: &Rectangle) -> 
     x_min + f64::from(t) * (x_max - x_min)
 }
 
-#[allow(dead_code)]
-fn screen_y_to_data(screen_y: f32, y_min: f64, y_max: f64, plot: &Rectangle) -> f64 {
-    let t = 1.0 - (screen_y - plot.y) / plot.height;
-    y_min + f64::from(t) * (y_max - y_min)
-}
-
 // ── Colour constants ─────────────────────────────────────────────────────
 
 const GRID_COLOR: Color = Color::from_rgba(0.3, 0.3, 0.3, 0.35);
@@ -516,7 +498,7 @@ fn draw_price_line(
     );
 }
 
-/// Draw the progressive cumulative VWAP line (white, 2px).
+/// Draw the anchored (running cumulative) VWAP line (white, 1.5px).
 ///
 /// Computes VWAP at each candle using all data from the first candle
 /// up to that candle, then plots the path.  Entries with zero cumulative
@@ -532,7 +514,7 @@ fn draw_vwap_line(
 ) {
     let pairs: Vec<(f64, f64)> = candles.iter().map(|c| (c.close, c.volume)).collect();
 
-    let vwaps = progressive_vwap(&pairs);
+    let vwaps = anchored_vwap(&pairs);
 
     // Collect (timestamp, vwap) for points that are Some
     let points: Vec<(f64, f64)> = candles
@@ -687,6 +669,39 @@ fn last_candle(candles: &[Candle]) -> Option<(Candle, usize)> {
     Some((candles[i], i))
 }
 
+/// Group an integer's digits with thousands commas.
+fn group_thousands(whole: i64) -> String {
+    let s = whole.to_string();
+    let mut result = String::with_capacity(s.len() + s.len() / 3);
+    for (i, c) in s.chars().enumerate() {
+        if i > 0 && (s.len() - i).is_multiple_of(3) {
+            result.push(',');
+        }
+        result.push(c);
+    }
+    result
+}
+
+/// `"$"` + comma-grouped whole part + `.` + two cents digits.
+fn fmt_price_with_commas(p: f64) -> String {
+    let whole = p.trunc() as i64;
+    let cents = ((p - p.trunc()) * 100.0).round() as u64;
+    let mut result = String::with_capacity(whole.to_string().len() + 5);
+    result.push('$');
+    result.push_str(&group_thousands(whole));
+    result.push('.');
+    result.push_str(&format!("{cents:02}"));
+    result
+}
+
+/// `"$"` + comma-grouped whole part (no decimals).
+fn fmt_price_whole(p: f64) -> String {
+    let mut result = String::with_capacity(p.trunc().to_string().len() + 2);
+    result.push('$');
+    result.push_str(&group_thousands(p.trunc() as i64));
+    result
+}
+
 fn draw_crosshair(
     frame: &mut Frame,
     plot: &Rectangle,
@@ -715,45 +730,13 @@ fn draw_crosshair(
         }
     }
 
-    // Price readout — date, close price, and VWAP (top-left corner)
-    fn fmt_price_with_commas(p: f64) -> String {
-        let whole = p.trunc() as i64;
-        let cents = ((p - p.trunc()) * 100.0).round() as u64;
-        let s = whole.to_string();
-        let mut result = String::with_capacity(s.len() + s.len() / 3 + 4);
-        result.push('$');
-        for (i, c) in s.chars().enumerate() {
-            if i > 0 && (s.len() - i).is_multiple_of(3) {
-                result.push(',');
-            }
-            result.push(c);
-        }
-        result.push('.');
-        result.push_str(&format!("{cents:02}"));
-        result
-    }
-
-    fn fmt_price_whole(p: f64) -> String {
-        let whole = p.trunc() as i64;
-        let s = whole.to_string();
-        let mut result = String::with_capacity(s.len() + s.len() / 3 + 1);
-        result.push('$');
-        for (i, c) in s.chars().enumerate() {
-            if i > 0 && (s.len() - i).is_multiple_of(3) {
-                result.push(',');
-            }
-            result.push(c);
-        }
-        result
-    }
-
-    // Compute the progressive VWAP up to the active index
+    // Compute the anchored VWAP up to the active index
     let vwap_label = {
         let pairs: Vec<(f64, f64)> = all_candles[..=active_idx]
             .iter()
             .map(|c| (c.close, c.volume))
             .collect();
-        let vwaps = crate::modules::compute::vwap::progressive_vwap(&pairs);
+        let vwaps = crate::modules::compute::vwap::anchored_vwap(&pairs);
         vwaps
             .last()
             .and_then(|v| *v)

@@ -66,8 +66,8 @@ const SIDEBAR_SCROLLBAR_WIDTH: f32 = 6.0;
 
 /// Shared scrollable style for the sidebars.
 ///
-/// Keeps the exact iced default appearance — only the scrollbar width is
-/// reduced. The width scales with the screen through `sp`.
+/// Keeps the exact iced default appearance. The reduced scrollbar width is
+/// applied separately by [`sidebar_scrollbar_direction`].
 pub fn sidebar_scrollable_style(
     theme: &iced::Theme,
     status: scrollable::Status,

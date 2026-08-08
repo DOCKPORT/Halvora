@@ -11,7 +11,7 @@ pub const FLASH_DOWN: Color = Color::from_rgb(1.0, 0.1, 0.05);
 
 /// Which direction the price moved on the last websocket tick.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FlashDirection {
+enum FlashDirection {
     /// The price moved up — flash green.
     Up,
     /// The price moved down — flash red.

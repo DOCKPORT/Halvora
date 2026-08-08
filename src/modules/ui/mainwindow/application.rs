@@ -3,13 +3,14 @@ use crate::modules::compute::year_over_year::Candle;
 use crate::modules::ui::line_chart::LineChartState;
 use crate::modules::ui::mainwindow::about_dialog;
 use crate::modules::ui::mainwindow::app_icon;
+use crate::modules::ui::mainwindow::calmar_dialog;
 use crate::modules::ui::mainwindow::dashboard_layout::dashboard;
 use crate::modules::ui::mainwindow::sidebar::blockchain_sidebar;
 use crate::modules::ui::mainwindow::sidebar::halving_sidebar;
-use crate::modules::ui::scaling::{Scaling, sp};
+use crate::modules::ui::scaling::Scaling;
 use crate::modules::ui::splash_screen::splash;
 use crate::modules::ui::splash_screen::state::{MainFadeInState, SplashState};
-use iced::widget::{container, mouse_area, row, text};
+use iced::widget::{container, mouse_area, row};
 use iced::window::Position;
 use iced::{Element, Font, Length, Subscription, window};
 use rusqlite::Connection;
@@ -328,9 +329,6 @@ pub enum Message {
     ResizePoll,
     /// Advances splash progress by the elapsed time since start.
     SplashTick,
-    /// Switches the application from the splash to the main dashboard.
-    #[allow(dead_code)]
-    EnterMain,
 }
 
 /// How often the resize poll ticks while a resize is pending.
@@ -373,8 +371,8 @@ fn subscription(state: &Halvora) -> Subscription<Message> {
 }
 
 fn update(state: &mut Halvora, message: Message) {
-    // Handle transitional (splash / fade-in) messages on every tick.
-    if matches!(message, Message::SplashTick | Message::EnterMain) {
+    // Handle the splash / fade-in tick on every frame.
+    if matches!(message, Message::SplashTick) {
         // Splash phase: wait until the scale is resolved (first real window
         // size), then advance progress and move to the dashboard fade-in.
         if let AppPhase::Splash(s) = &mut state.phase {
@@ -676,7 +674,7 @@ fn update(state: &mut Halvora, message: Message) {
                 state.pending_resize = None;
             }
         }
-        Message::SplashTick | Message::EnterMain => {
+        Message::SplashTick => {
             // Handled above; unreachable once the phase is Main.
         }
         Message::NewDay(_ts) => {
@@ -758,109 +756,7 @@ fn view(state: &Halvora) -> Element<'_, Message> {
 
     let mut display = main_content;
     if state.show_calmar_dialog {
-        // Semi-transparent overlay
-        let overlay = container(
-            container(
-                iced::widget::column![
-                    text("Calmar Ratio Details")
-                        .size(sp(20.0))
-                        .color(iced::Color::WHITE)
-                        .font(iced::Font::with_name("Geist Mono")),
-                    text("─")
-                        .size(sp(12.0))
-                        .color(iced::Color::from_rgb(0.4, 0.4, 0.4))
-                        .font(iced::Font::with_name("Geist Mono")),
-                    text("Formula: Annualized Return ÷ Max Drawdown")
-                        .size(sp(13.0))
-                        .color(iced::Color::from_rgb(0.8, 0.8, 0.8))
-                        .font(iced::Font::with_name("Geist Mono")),
-                    text("• Daily P/L%: (Close − Open) / Open")
-                        .size(sp(12.0))
-                        .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
-                        .font(iced::Font::with_name("Geist Mono")),
-                    text("• Weighted Avg: Σ(P/L% × Vol) / Σ(Vol)")
-                        .size(sp(12.0))
-                        .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
-                        .font(iced::Font::with_name("Geist Mono")),
-                    text("• Annualized: Weighted Avg × 365")
-                        .size(sp(12.0))
-                        .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
-                        .font(iced::Font::with_name("Geist Mono")),
-                    text("• Ratio: Annualized / Max DD")
-                        .size(sp(12.0))
-                        .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
-                        .font(iced::Font::with_name("Geist Mono")),
-                    text("─")
-                        .size(sp(12.0))
-                        .color(iced::Color::from_rgb(0.4, 0.4, 0.4))
-                        .font(iced::Font::with_name("Geist Mono")),
-                    text(format!(
-                        "Weighted Avg P/L:  {}",
-                        &state.metrics.calmar_breakdown.weighted_avg_pl
-                    ))
-                    .size(sp(14.0))
-                    .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
-                    .font(iced::Font::with_name("Geist Mono")),
-                    text(format!(
-                        "Annualized Return:  {}",
-                        &state.metrics.calmar_breakdown.annualized_return
-                    ))
-                    .size(sp(14.0))
-                    .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
-                    .font(iced::Font::with_name("Geist Mono")),
-                    text(format!(
-                        "Max Drawdown:  {}",
-                        &state.metrics.calmar_breakdown.max_drawdown
-                    ))
-                    .size(sp(14.0))
-                    .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
-                    .font(iced::Font::with_name("Geist Mono")),
-                    text(format!(
-                        "Calmar Ratio:  {}",
-                        &state.metrics.calmar_breakdown.ratio
-                    ))
-                    .size(sp(14.0))
-                    .color(iced::Color::from_rgb(0.7, 0.7, 0.7))
-                    .font(iced::Font::with_name("Geist Mono")),
-                    iced::widget::button(text("Close").size(sp(14.0)).color(iced::Color::WHITE))
-                        .on_press(Message::CloseCalmarDialog)
-                        .padding(iced::Padding::new(sp(8.0)).horizontal(sp(16.0)))
-                        .style(|_theme, _status| iced::widget::button::Style {
-                            background: Some(iced::Background::Color(iced::Color::from_rgb(
-                                0.3, 0.3, 0.3
-                            ))),
-                            border: iced::border::rounded(6),
-                            shadow: Default::default(),
-                            text_color: Default::default(),
-                            snap: false,
-                        }),
-                ]
-                .spacing(sp(12.0))
-                .align_x(iced::Alignment::Center)
-                .padding(sp(32.0)),
-            )
-            .width(Length::Fixed(sp(400.0)))
-            .style(|_theme| container::Style {
-                background: Some(iced::Background::Color(iced::Color::from_rgb(
-                    0.15, 0.15, 0.15,
-                ))),
-                border: iced::border::rounded(12)
-                    .color(iced::Color::from_rgb(0.3, 0.3, 0.3))
-                    .width(1.5),
-                ..Default::default()
-            }),
-        )
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .style(|_theme| container::Style {
-            background: Some(iced::Background::Color(iced::Color::from_rgba(
-                0.0, 0.0, 0.0, 0.6,
-            ))),
-            ..Default::default()
-        })
-        .align_x(iced::Alignment::Center)
-        .align_y(iced::Alignment::Center);
-
+        let overlay = calmar_dialog::view(&state.metrics);
         display = iced::widget::stack(vec![display, mouse_area(overlay).into()]).into();
         if let Some(opacity) = fade_in_opacity {
             display = fade_overlay(display, opacity);
