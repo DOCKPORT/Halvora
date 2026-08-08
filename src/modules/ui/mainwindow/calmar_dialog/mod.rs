@@ -5,9 +5,10 @@
 
 use crate::modules::compute::metrics::Metrics;
 use crate::modules::ui::mainwindow::application::Message;
+use crate::modules::ui::mainwindow::dialog_chrome;
 use crate::modules::ui::scaling::sp;
-use iced::widget::{button, container, text};
-use iced::{Color, Element, Length};
+use iced::widget::{button, text};
+use iced::{Color, Element};
 
 /// Render the Calmar ratio details dialog as a full-screen dimmed overlay.
 ///
@@ -85,24 +86,5 @@ pub fn view(metrics: &Metrics) -> Element<'_, Message> {
     .align_x(iced::Alignment::Center)
     .padding(sp(32.0));
 
-    let card = container(inner)
-        .width(Length::Fixed(sp(400.0)))
-        .style(|_theme| container::Style {
-            background: Some(iced::Background::Color(Color::from_rgb(0.15, 0.15, 0.15))),
-            border: iced::border::rounded(12)
-                .color(Color::from_rgb(0.3, 0.3, 0.3))
-                .width(1.5),
-            ..Default::default()
-        });
-
-    container(card)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .style(|_theme| container::Style {
-            background: Some(iced::Background::Color(Color::from_rgba(0.0, 0.0, 0.0, 0.6))),
-            ..Default::default()
-        })
-        .center_x(Length::Fill)
-        .center_y(Length::Fill)
-        .into()
+    dialog_chrome::overlay(dialog_chrome::card(inner.into(), sp(400.0)))
 }

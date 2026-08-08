@@ -5,6 +5,7 @@ use crate::modules::ui::mainwindow::about_dialog;
 use crate::modules::ui::mainwindow::app_icon;
 use crate::modules::ui::mainwindow::calmar_dialog;
 use crate::modules::ui::mainwindow::dashboard_layout::dashboard;
+use crate::modules::ui::mainwindow::db_accessor;
 use crate::modules::ui::mainwindow::sidebar::blockchain_sidebar;
 use crate::modules::ui::mainwindow::sidebar::halving_sidebar;
 use crate::modules::ui::scaling::Scaling;
@@ -13,8 +14,6 @@ use crate::modules::ui::splash_screen::state::{MainFadeInState, SplashState};
 use iced::widget::{container, mouse_area, row};
 use iced::window::Position;
 use iced::{Element, Font, Length, Subscription, window};
-use rusqlite::Connection;
-use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 /// Embed the `GeistMono` font as fallback — the system-installed `SemiBold`
@@ -194,9 +193,9 @@ impl Halvora {
     }
 
     fn new() -> Self {
-        let current_tip_height = Self::load_tip_height();
-        let current_subsidy_sat = Self::load_current_subsidy();
-        let mining_difficulty = Self::load_mining_difficulty();
+        let current_tip_height = db_accessor::load_tip_height();
+        let current_subsidy_sat = db_accessor::load_current_subsidy();
+        let mining_difficulty = db_accessor::load_mining_difficulty();
         let next_halving_eta =
             crate::modules::compute::halving_eta::next_halving_eta(current_tip_height);
         let blocks_to_next_halving =
@@ -259,50 +258,6 @@ impl Halvora {
         state
     }
 
-    /// Query the most recent tip height from the database.
-    fn load_tip_height() -> u32 {
-        let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
-        let db_path = base.join("Halvora").join("Mempool").join("blocks.db");
-        if let Ok(conn) = Connection::open(&db_path)
-            && let Ok(height) =
-                conn.query_row("SELECT height FROM current_tip LIMIT 1", [], |row| {
-                    row.get(0)
-                })
-        {
-            return height;
-        }
-        0
-    }
-
-    /// Query the current subsidy (sats) from the database.
-    fn load_current_subsidy() -> i64 {
-        let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
-        let db_path = base.join("Halvora").join("Mempool").join("blocks.db");
-        if let Ok(conn) = Connection::open(&db_path)
-            && let Ok(subsidy) =
-                conn.query_row("SELECT subsidy FROM current_tip LIMIT 1", [], |row| {
-                    row.get(0)
-                })
-        {
-            return subsidy;
-        }
-        0
-    }
-
-    /// Query the current mining difficulty from the database.
-    fn load_mining_difficulty() -> f64 {
-        let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
-        let db_path = base.join("Halvora").join("Mempool").join("blocks.db");
-        if let Ok(conn) = Connection::open(&db_path)
-            && let Ok(difficulty) =
-                conn.query_row("SELECT difficulty FROM current_tip LIMIT 1", [], |row| {
-                    row.get(0)
-                })
-        {
-            return difficulty;
-        }
-        0.0
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -490,9 +445,9 @@ fn update(state: &mut Halvora, message: Message) {
         }
         Message::Tick => {
             crate::modules::api::mempool::rest::halve_blocks::fetch_and_store();
-            state.current_tip_height = Halvora::load_tip_height();
-            state.current_subsidy_sat = Halvora::load_current_subsidy();
-            state.mining_difficulty = Halvora::load_mining_difficulty();
+            state.current_tip_height = db_accessor::load_tip_height();
+            state.current_subsidy_sat = db_accessor::load_current_subsidy();
+            state.mining_difficulty = db_accessor::load_mining_difficulty();
             // Keep the metric bar subsidy current for the active page.
             if let Some(n) = state.selected_halving {
                 state.subsidy_label =

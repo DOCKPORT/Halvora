@@ -5,8 +5,9 @@
 //! and the GitHub icon as a clickable link to the source repository.
 
 use crate::modules::ui::mainwindow::application::Message;
+use crate::modules::ui::mainwindow::dialog_chrome;
 use crate::modules::ui::scaling::sp;
-use iced::widget::{button, container, svg, text};
+use iced::widget::{button, svg, text};
 use iced::{Color, ContentFit, Element, Length};
 
 /// The GitHub icon SVG, embedded in the binary at compile time so the
@@ -77,26 +78,5 @@ block subsidy.",
     .align_x(iced::Alignment::Center)
     .padding(sp(32.0));
 
-    container(
-        container(inner)
-            .width(Length::Fixed(sp(440.0)))
-            .style(|_theme| container::Style {
-                background: Some(iced::Background::Color(Color::from_rgb(0.15, 0.15, 0.15))),
-                border: iced::border::rounded(12)
-                    .color(Color::from_rgb(0.3, 0.3, 0.3))
-                    .width(1.5),
-                ..Default::default()
-            }),
-    )
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .style(|_theme| container::Style {
-        background: Some(iced::Background::Color(Color::from_rgba(
-            0.0, 0.0, 0.0, 0.6,
-        ))),
-        ..Default::default()
-    })
-    .align_x(iced::Alignment::Center)
-    .align_y(iced::Alignment::Center)
-    .into()
+    dialog_chrome::overlay(dialog_chrome::card(inner.into(), sp(440.0)))
 }
