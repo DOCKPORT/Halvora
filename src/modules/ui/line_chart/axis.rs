@@ -178,10 +178,8 @@ fn quarter_boundaries(min_ts: f64, max_ts: f64) -> Vec<QuarterBoundary> {
         }
 
         if let Some(day1) = NaiveDate::from_ymd_opt(year, qm, 1) {
-            let tick_dt: DateTime<Utc> = DateTime::from_naive_utc_and_offset(
-                day1.and_time(NaiveTime::default()),
-                Utc,
-            );
+            let tick_dt: DateTime<Utc> =
+                DateTime::from_naive_utc_and_offset(day1.and_time(NaiveTime::default()), Utc);
             if tick_dt >= min_dt && tick_dt <= max_dt {
                 boundaries.push(QuarterBoundary {
                     position: tick_dt.timestamp() as f64,

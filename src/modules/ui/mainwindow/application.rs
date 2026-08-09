@@ -257,7 +257,6 @@ impl Halvora {
         Self::refresh_halving_signs(&mut state);
         state
     }
-
 }
 
 #[derive(Debug, Clone)]

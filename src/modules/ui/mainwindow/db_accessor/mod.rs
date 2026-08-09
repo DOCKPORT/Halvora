@@ -30,10 +30,9 @@ pub fn load_tip_height() -> u32 {
 pub fn load_current_subsidy() -> i64 {
     let db_path = blocks_db_path();
     if let Ok(conn) = Connection::open(&db_path)
-        && let Ok(subsidy) =
-            conn.query_row("SELECT subsidy FROM current_tip LIMIT 1", [], |row| {
-                row.get(0)
-            })
+        && let Ok(subsidy) = conn.query_row("SELECT subsidy FROM current_tip LIMIT 1", [], |row| {
+            row.get(0)
+        })
     {
         return subsidy;
     }

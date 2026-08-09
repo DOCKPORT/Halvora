@@ -49,13 +49,10 @@ pub fn view(metrics: &Metrics) -> Element<'_, Message> {
             .size(sp(12.0))
             .color(Color::from_rgb(0.4, 0.4, 0.4))
             .font(iced::Font::with_name("Geist Mono")),
-        text(format!(
-            "Weighted Avg P/L:  {}",
-            breakdown.weighted_avg_pl
-        ))
-        .size(sp(14.0))
-        .color(Color::from_rgb(0.7, 0.7, 0.7))
-        .font(iced::Font::with_name("Geist Mono")),
+        text(format!("Weighted Avg P/L:  {}", breakdown.weighted_avg_pl))
+            .size(sp(14.0))
+            .color(Color::from_rgb(0.7, 0.7, 0.7))
+            .font(iced::Font::with_name("Geist Mono")),
         text(format!(
             "Annualized Return:  {}",
             breakdown.annualized_return
