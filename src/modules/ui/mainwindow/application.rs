@@ -76,6 +76,9 @@ struct Halvora {
     subsidy_value: String,
     sats_per_usd: String,
     all_time_high: String,
+    /// Highest live price seen this session, so a new all-time high stays
+    /// visible even after the price pulls back below the DB record.
+    session_high: f64,
     metrics: Metrics,
     /// P/L sign for the Year-Over-Year period, used to color the sidebar button.
     yoy_pl_sign: PLSign,
@@ -213,7 +216,15 @@ impl Halvora {
         // once the first trade price arrives.
         let seeded_price = candles.last().map(|c| c.close);
 
-        let all_time_high = crate::modules::compute::price_stats::all_time_high(seeded_price);
+        // Session high starts at the greater of the historical DB record and
+        // the seeded price. It only rises from here, so a new all-time high
+        // set mid-session stays shown even after the price pulls back.
+        let session_high = crate::modules::compute::price_stats::db_high()
+            .into_iter()
+            .chain(seeded_price)
+            .fold(0.0_f64, f64::max);
+
+        let all_time_high = crate::modules::compute::price_stats::fmt_high(session_high);
         // Compute the startup metrics and sidebar values from the seeded price
         // so the dashboard is fully populated when it first appears.
         let metrics = crate::modules::compute::metrics::compute(&candles, seeded_price);
@@ -238,6 +249,7 @@ impl Halvora {
             subsidy_value,
             sats_per_usd,
             all_time_high,
+            session_high,
             metrics,
             yoy_pl_sign: PLSign::NoChange,
             halving_pl_signs: vec![PLSign::NoChange; 33],
@@ -519,7 +531,12 @@ fn update(state: &mut Halvora, message: Message) {
                 state.current_subsidy_sat,
             );
             state.sats_per_usd = crate::modules::compute::price_stats::sats_per_usd(Some(price));
-            state.all_time_high = crate::modules::compute::price_stats::all_time_high(Some(price));
+            // Raise the session high if the live price sets a new record; it
+            // never falls back, so the all-time high stays shown even if the
+            // price pulls back below the DB record.
+            state.session_high = state.session_high.max(price);
+            state.all_time_high =
+                crate::modules::compute::price_stats::fmt_high(state.session_high);
 
             // Update today's candle close/high/low in the cached YOY data.
             let now = std::time::SystemTime::now()

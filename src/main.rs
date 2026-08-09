@@ -5,6 +5,7 @@ fn main() -> iced::Result {
     // renders correctly from the very first frame.
     modules::ui::scaling::Scaling::init();
     modules::app_data_dir::ensure();
+    modules::api::bit_stamp::bitstamp_data::seed_if_missing();
     modules::api::mempool::rest::halve_blocks::fetch_and_store();
     modules::api::bit_stamp::candle_sync::fetch_and_store();
     modules::ui::mainwindow::application::run()

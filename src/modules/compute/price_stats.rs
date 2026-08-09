@@ -81,22 +81,17 @@ fn db_all_time_high() -> Option<f64> {
     })
 }
 
-/// Return the effective all-time high — the greater of the historical DB max
-/// and the current live WebSocket price (if provided).
-///
-/// When `live_price` exceeds the DB record, it overrides the displayed value.
-/// The DB record is queried once and cached for the session.
-///
-/// Returns a formatted string like `"$73,750.07"` or `"—"` if no data.
-pub fn all_time_high(live_price: Option<f64>) -> String {
-    let db_max = db_all_time_high();
+/// The historical all-time high from the database, queried once and cached
+/// for the session.
+pub fn db_high() -> Option<f64> {
+    db_all_time_high()
+}
 
-    let effective = match (db_max, live_price) {
-        (Some(db), Some(live)) => db.max(live),
-        (Some(db), None) => db,
-        (None, Some(live)) => live,
-        (None, None) => return "\u{2014}".to_string(),
-    };
-
-    format!("${}", fmt_usd(effective))
+/// Format an asset high as USD, returning `"—"` when `value` is non-positive
+/// (no data yet).
+pub fn fmt_high(value: f64) -> String {
+    if value <= 0.0 {
+        return "\u{2014}".to_string();
+    }
+    format!("${}", fmt_usd(value))
 }
