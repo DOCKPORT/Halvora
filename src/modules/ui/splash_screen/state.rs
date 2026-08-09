@@ -1,5 +1,10 @@
 use std::time::Instant;
 
+/// Seconds elapsed since `start_time`, or `0.0` when there is no start time.
+fn elapsed_secs(start_time: Option<Instant>) -> f32 {
+    start_time.map_or(0.0, |t| t.elapsed().as_secs_f32())
+}
+
 /// State for the fixed-duration splash screen.
 ///
 /// Progress advances from 0.0 to 1.0 over a fixed total duration.
@@ -81,7 +86,7 @@ impl SplashState {
     ///
     /// Returns `0.0` when the splash has not started yet.
     pub fn elapsed_secs(&self) -> f32 {
-        self.start_time.map_or(0.0, |t| t.elapsed().as_secs_f32())
+        elapsed_secs(self.start_time)
     }
 
     /// The current opacity in the range 0.0..=1.0.
@@ -142,7 +147,7 @@ impl MainFadeInState {
     ///
     /// Returns `0.0` when the fade-in has not started yet.
     pub fn elapsed_secs(&self) -> f32 {
-        self.start_time.map_or(0.0, |t| t.elapsed().as_secs_f32())
+        elapsed_secs(self.start_time)
     }
 
     /// The current overlay opacity in the range 0.0..=1.0.

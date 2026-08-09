@@ -20,7 +20,7 @@ pub fn y_bounds(candles: &[Candle]) -> (f64, f64) {
     if candles.is_empty() {
         return (0.0, 1.0);
     }
-    let max_vol = candles.iter().map(|c| c.volume).fold(0.0_f64, f64::max);
+    let max_vol = candles.iter().map(|c| c.volume).fold(0.0, f64::max);
     if max_vol <= 0.0 {
         (0.0, 1.0)
     } else {

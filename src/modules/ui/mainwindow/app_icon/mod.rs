@@ -15,11 +15,9 @@ const ICON_SVG: &[u8] = include_bytes!(concat!(
 pub fn load_app_icon() -> Option<iced::window::Icon> {
     const ICON_SIZE: u32 = 256;
 
-    let svg_data = ICON_SVG;
-
     let mut opt = resvg::usvg::Options::default();
     opt.fontdb_mut().load_system_fonts();
-    let tree = resvg::usvg::Tree::from_data(svg_data, &opt).ok()?;
+    let tree = resvg::usvg::Tree::from_data(ICON_SVG, &opt).ok()?;
 
     let src_size = tree.size();
     let (src_w, src_h) = (src_size.width(), src_size.height());

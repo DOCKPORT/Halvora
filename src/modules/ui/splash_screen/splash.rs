@@ -1,3 +1,4 @@
+use crate::modules::ui::scaling::sp;
 use crate::modules::ui::theme;
 use iced::widget::{Space, column, container, progress_bar, stack, svg};
 use iced::{Color, Element, Length, Vector};
@@ -38,7 +39,7 @@ pub fn view(
     let opacity = state.opacity();
 
     let logo_svg = svg(svg::Handle::from_memory(LOGO_SVG))
-        .width(Length::Fixed(crate::modules::ui::scaling::sp(LOGO_WIDTH)))
+        .width(Length::Fixed(sp(LOGO_WIDTH)))
         .opacity(opacity);
 
     // Wrap the banner in a container that carries a soft drop shadow.
@@ -46,14 +47,14 @@ pub fn view(
         shadow: iced::Shadow {
             color: Color::from_rgba(0.0, 0.0, 0.0, 0.35).scale_alpha(opacity),
             offset: Vector::new(0.0, 6.0),
-            blur_radius: crate::modules::ui::scaling::sp(20.0),
+            blur_radius: sp(20.0),
         },
         ..Default::default()
     });
 
     let bar = progress_bar(0.0..=1.0, state.progress())
-        .length(Length::Fixed(crate::modules::ui::scaling::sp(LOGO_WIDTH)))
-        .girth(Length::Fixed(crate::modules::ui::scaling::sp(6.0)))
+        .length(Length::Fixed(sp(LOGO_WIDTH)))
+        .girth(Length::Fixed(sp(6.0)))
         .style(move |_theme: &iced::Theme| progress_bar::Style {
             background: iced::Background::Color(
                 Color::from_rgba(1.0, 1.0, 1.0, 0.15).scale_alpha(opacity),
@@ -63,20 +64,20 @@ pub fn view(
         });
 
     let content = column![banner, bar]
-        .spacing(crate::modules::ui::scaling::sp(24.0))
+        .spacing(sp(24.0))
         .align_x(iced::Alignment::Center);
 
     // A solid rectangle in the background colour sits directly behind the
     // banner and progress bar, hiding the cross-hatch lines there so the
     // logo reads cleanly. The cross-hatch stays visible around the edges.
-    let backdrop_padding = crate::modules::ui::scaling::sp(BACKDROP_PADDING);
+    let backdrop_padding = sp(BACKDROP_PADDING);
     let backdrop = container(content)
         .padding(backdrop_padding)
         .style(move |_theme| container::Style {
             background: Some(iced::Background::Color(
                 theme::SPLASH_BACKGROUND.scale_alpha(opacity),
             )),
-            border: iced::border::rounded(crate::modules::ui::scaling::sp(8.0)),
+            border: iced::border::rounded(sp(8.0)),
             ..Default::default()
         });
 

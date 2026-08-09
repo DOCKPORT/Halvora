@@ -60,6 +60,16 @@ pub fn view<'a>(
 
 // ── Coordinate helpers (copied from line_chart.rs to avoid circular deps) ──
 
+/// Plot area inset by 60px on each side of the chart bounds.
+fn plot_bounds(bounds: Rectangle) -> Rectangle {
+    Rectangle {
+        x: bounds.x + 60.0,
+        y: bounds.y + 60.0,
+        width: bounds.width - 120.0,
+        height: bounds.height - 120.0,
+    }
+}
+
 fn data_x_to_screen(ts: f64, x_min: f64, x_max: f64, plot: &Rectangle) -> f32 {
     let t = (ts - x_min) / (x_max - x_min);
     plot.x + (t as f32) * plot.width
@@ -406,12 +416,7 @@ pub fn handle_range_event(
     cursor: iced::mouse::Cursor,
     state: &LineChartState,
 ) -> RangeActionResult {
-    let plot = Rectangle {
-        x: bounds.x + 60.0,
-        y: bounds.y + 60.0,
-        width: bounds.width - 120.0,
-        height: bounds.height - 120.0,
-    };
+    let plot = plot_bounds(bounds);
     let cursor_pt = match cursor.position_over(bounds) {
         Some(pt) => pt,
         None => return RangeActionResult::None,
@@ -478,12 +483,7 @@ pub fn handle_right_click_delete(
     bounds: Rectangle,
     state: &LineChartState,
 ) -> RangeActionResult {
-    let plot = Rectangle {
-        x: bounds.x + 60.0,
-        y: bounds.y + 60.0,
-        width: bounds.width - 120.0,
-        height: bounds.height - 120.0,
-    };
+    let plot = plot_bounds(bounds);
     let cursor_pt = match cursor.position_over(bounds) {
         Some(pt) => pt,
         None => return RangeActionResult::None,

@@ -106,10 +106,7 @@ impl<Message> canvas::Program<Message> for VolumeChartProgram<'_> {
             if x < plot.x || x > plot.x + plot.width {
                 continue;
             }
-            let qline_path = Path::new(|p| {
-                p.move_to(Point::new(x, plot.y));
-                p.line_to(Point::new(x, plot.y + plot.height));
-            });
+            let qline_path = vertical_line(&plot, x);
             frame.stroke(
                 &qline_path,
                 Stroke::default().with_color(quarter_color).with_width(1.0),
@@ -125,10 +122,7 @@ impl<Message> canvas::Program<Message> for VolumeChartProgram<'_> {
         {
             let x = data_x_to_screen(candles[idx].timestamp as f64, x_min, x_max, &plot);
             if x >= plot.x && x <= plot.x + plot.width {
-                let vline = Path::new(|p| {
-                    p.move_to(Point::new(x, plot.y));
-                    p.line_to(Point::new(x, plot.y + plot.height));
-                });
+                let vline = vertical_line(&plot, x);
                 frame.stroke(
                     &vline,
                     Stroke::default()
@@ -196,6 +190,14 @@ fn data_x_to_screen(ts: f64, x_min: f64, x_max: f64, plot: &Rectangle) -> f32 {
 fn data_y_to_screen(volume: f64, y_min: f64, y_max: f64, plot: &Rectangle) -> f32 {
     let t = (volume - y_min) / (y_max - y_min);
     plot.y + (1.0 - t as f32) * plot.height
+}
+
+/// A full-height vertical line from the top to the bottom of the plot area.
+fn vertical_line(plot: &Rectangle, x: f32) -> Path {
+    Path::new(|p| {
+        p.move_to(Point::new(x, plot.y));
+        p.line_to(Point::new(x, plot.y + plot.height));
+    })
 }
 
 // ── Colour constants ─────────────────────────────────────────────────────

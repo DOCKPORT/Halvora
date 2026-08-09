@@ -9,6 +9,14 @@ const GREEN_LINE: Color = Color::from_rgb(0.0, 0.8, 0.3);
 const RED_LINE: Color = Color::from_rgb(1.0, 0.1, 0.05);
 const GREY_LINE: Color = Color::from_rgb(0.5, 0.5, 0.5);
 
+/// Semibold monospaced font used for metric values.
+const VALUE_FONT: iced::Font = iced::Font {
+    family: iced::font::Family::Name("Geist Mono"),
+    weight: iced::font::Weight::Semibold,
+    stretch: iced::font::Stretch::Normal,
+    style: iced::font::Style::Normal,
+};
+
 fn metric_card<'a>(
     label: &'a str,
     value: &'a str,
@@ -24,12 +32,7 @@ fn metric_card<'a>(
             .size(sp(18.0))
             .width(Length::Fill)
             .align_x(text::Alignment::Right)
-            .font(iced::Font {
-                family: iced::font::Family::Name("Geist Mono"),
-                weight: iced::font::Weight::Semibold,
-                stretch: iced::font::Stretch::Normal,
-                style: iced::font::Style::Normal,
-            })
+            .font(VALUE_FONT)
             .color(value_color)
             .into(),
     ])

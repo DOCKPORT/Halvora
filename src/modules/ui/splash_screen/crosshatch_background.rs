@@ -4,13 +4,13 @@ use iced::{Color, Element, Length, Point, Rectangle, Renderer, Theme};
 
 use crate::modules::ui::scaling;
 
-/// Spacing between adjacent 45° lines, in unscaled reference pixels.
+/// Spacing between adjacent -45° lines, in unscaled reference pixels.
 const LINE_SPACING: f32 = 12.0;
 
-/// Width of each 45° line, in unscaled reference pixels.
+/// Width of each -45° line, in unscaled reference pixels.
 const LINE_WIDTH: f32 = 2.0;
 
-/// Grey used for the 45° lines. Exposed so callers (such as the blockchain
+/// Grey used for the -45° lines. Exposed so callers (such as the blockchain
 /// sidebar's info card borders) can match the line colour exactly.
 pub const LINE_COLOR: Color = Color::from_rgba(0.6, 0.6, 0.6, 0.25);
 
@@ -19,7 +19,7 @@ const EDGE_PADDING: f32 = 40.0;
 
 /// The splash background canvas program.
 ///
-/// Draws a single family of parallel lines at 45°, in a subtle grey, over
+/// Draws a single family of parallel lines at -45°, in a subtle grey, over
 /// the full widget area. The lines stop a uniform distance (`EDGE_PADDING`)
 /// from each edge and fade with the splash's opacity.
 pub struct BackgroundProgram {
@@ -98,23 +98,23 @@ impl<Message> canvas::Program<Message> for BackgroundProgram {
             .with_color(line_color)
             .with_width(line_width);
 
-        // Lines slope such that as x increases, y also increases (down-right).
-        // For a line with slope 1 starting at screen y, a point offset dy
-        // below it has its starting x reduced by the same dy.
+        // Lines slope such that as x increases, y decreases (up-right).
+        // For a line with slope -1 starting at screen y, a point offset dy
+        // above it has its starting x reduced by the same dy.
         //
-        // Walk each possible starting row at the left edge (top to bottom),
-        // then walk the remaining starting columns at the top edge (left to
-        // right). Each starting point produces one 45° segment clipped to the
+        // Walk each possible starting row at the left edge (bottom to top),
+        // then walk the remaining starting columns at the bottom edge (left to
+        // right). Each starting point produces one -45° segment clipped to the
         // padded rectangle.
-        let mut start_y = top;
-        while start_y <= bottom {
-            draw_segment(&mut frame, stroke, left, start_y, right, bottom);
-            start_y += spacing;
+        let mut start_y = bottom;
+        while start_y >= top {
+            draw_segment(&mut frame, stroke, left, start_y, right, top);
+            start_y -= spacing;
         }
 
         let mut start_x = left + spacing;
         while start_x <= right {
-            draw_segment(&mut frame, stroke, start_x, top, right, bottom);
+            draw_segment(&mut frame, stroke, start_x, bottom, right, top);
             start_x += spacing;
         }
 
@@ -122,22 +122,22 @@ impl<Message> canvas::Program<Message> for BackgroundProgram {
     }
 }
 
-/// Draws one 45° line segment from its start point, clipped to the padded
-/// rectangle's right and bottom edges.
+/// Draws one -45° line segment from its start point, clipped to the padded
+/// rectangle's right and top edges.
 fn draw_segment(
     frame: &mut Frame,
     stroke: Stroke,
     start_x: f32,
     start_y: f32,
     right: f32,
-    bottom: f32,
+    top: f32,
 ) {
     let horiz_dist = right - start_x;
-    let vert_dist = bottom - start_y;
+    let vert_dist = start_y - top;
     let dist = horiz_dist.min(vert_dist);
 
     let end_x = start_x + dist;
-    let end_y = start_y + dist;
+    let end_y = start_y - dist;
 
     let path = Path::new(|builder| {
         builder.move_to(Point::new(start_x, start_y));

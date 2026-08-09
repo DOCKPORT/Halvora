@@ -10,6 +10,9 @@ use crate::modules::ui::scaling::sp;
 use iced::widget::{button, text};
 use iced::{Color, Element};
 
+/// The monospaced font used for all dialog text.
+const FONT: iced::Font = iced::Font::with_name("Geist Mono");
+
 /// Render the Calmar ratio details dialog as a full-screen dimmed overlay.
 ///
 /// The caller stacks this on top of the main content (wrapped in a
@@ -18,57 +21,57 @@ pub fn view(metrics: &Metrics) -> Element<'_, Message> {
     let breakdown = &metrics.calmar_breakdown;
     let inner = iced::widget::column![
         text("Calmar Ratio Details")
-            .size(sp(20.0))
+            .size(sp(22.0))
             .color(Color::WHITE)
-            .font(iced::Font::with_name("Geist Mono")),
+            .font(FONT),
         text("─")
-            .size(sp(12.0))
-            .color(Color::from_rgb(0.4, 0.4, 0.4))
-            .font(iced::Font::with_name("Geist Mono")),
-        text("Formula: Annualized Return ÷ Max Drawdown")
             .size(sp(13.0))
-            .color(Color::from_rgb(0.8, 0.8, 0.8))
-            .font(iced::Font::with_name("Geist Mono")),
-        text("• Daily P/L%: (Close − Open) / Open")
-            .size(sp(12.0))
-            .color(Color::from_rgb(0.7, 0.7, 0.7))
-            .font(iced::Font::with_name("Geist Mono")),
-        text("• Weighted Avg: Σ(P/L% × Vol) / Σ(Vol)")
-            .size(sp(12.0))
-            .color(Color::from_rgb(0.7, 0.7, 0.7))
-            .font(iced::Font::with_name("Geist Mono")),
-        text("• Annualized: Weighted Avg × 365")
-            .size(sp(12.0))
-            .color(Color::from_rgb(0.7, 0.7, 0.7))
-            .font(iced::Font::with_name("Geist Mono")),
-        text("• Ratio: Annualized / Max DD")
-            .size(sp(12.0))
-            .color(Color::from_rgb(0.7, 0.7, 0.7))
-            .font(iced::Font::with_name("Geist Mono")),
-        text("─")
-            .size(sp(12.0))
             .color(Color::from_rgb(0.4, 0.4, 0.4))
-            .font(iced::Font::with_name("Geist Mono")),
-        text(format!("Weighted Avg P/L:  {}", breakdown.weighted_avg_pl))
+            .font(FONT),
+        text("Formula: Annualized Return ÷ Max Drawdown")
             .size(sp(14.0))
+            .color(Color::from_rgb(0.8, 0.8, 0.8))
+            .font(FONT),
+        text("• Daily P/L%: (Close − Open) / Open")
+            .size(sp(13.0))
             .color(Color::from_rgb(0.7, 0.7, 0.7))
-            .font(iced::Font::with_name("Geist Mono")),
+            .font(FONT),
+        text("• Weighted Avg: Σ(P/L% × Vol) / Σ(Vol)")
+            .size(sp(13.0))
+            .color(Color::from_rgb(0.7, 0.7, 0.7))
+            .font(FONT),
+        text("• Annualized: Weighted Avg × 365")
+            .size(sp(13.0))
+            .color(Color::from_rgb(0.7, 0.7, 0.7))
+            .font(FONT),
+        text("• Ratio: Annualized / Max DD")
+            .size(sp(13.0))
+            .color(Color::from_rgb(0.7, 0.7, 0.7))
+            .font(FONT),
+        text("─")
+            .size(sp(13.0))
+            .color(Color::from_rgb(0.4, 0.4, 0.4))
+            .font(FONT),
+        text(format!("Weighted Avg P/L:  {}", breakdown.weighted_avg_pl))
+            .size(sp(15.0))
+            .color(Color::from_rgb(0.7, 0.7, 0.7))
+            .font(FONT),
         text(format!(
             "Annualized Return:  {}",
             breakdown.annualized_return
         ))
-        .size(sp(14.0))
+        .size(sp(15.0))
         .color(Color::from_rgb(0.7, 0.7, 0.7))
-        .font(iced::Font::with_name("Geist Mono")),
+        .font(FONT),
         text(format!("Max Drawdown:  {}", breakdown.max_drawdown))
-            .size(sp(14.0))
+            .size(sp(15.0))
             .color(Color::from_rgb(0.7, 0.7, 0.7))
-            .font(iced::Font::with_name("Geist Mono")),
+            .font(FONT),
         text(format!("Calmar Ratio:  {}", breakdown.ratio))
-            .size(sp(14.0))
+            .size(sp(15.0))
             .color(Color::from_rgb(0.7, 0.7, 0.7))
-            .font(iced::Font::with_name("Geist Mono")),
-        button(text("Close").size(sp(14.0)).color(Color::WHITE))
+            .font(FONT),
+        button(text("Close").size(sp(15.0)).color(Color::WHITE))
             .on_press(Message::CloseCalmarDialog)
             .padding(iced::Padding::new(sp(8.0)).horizontal(sp(16.0)))
             .style(|_theme, _status| button::Style {

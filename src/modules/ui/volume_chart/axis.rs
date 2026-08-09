@@ -13,14 +13,16 @@ pub fn y_ticks(y_min: f64, y_max: f64) -> Vec<Tick> {
     if range <= 0.0 {
         return Vec::new();
     }
+    let lower_pos = y_min + range * 0.3333;
+    let upper_pos = y_min + range * 0.6667;
     vec![
         Tick {
-            position: y_min + range * 0.3333,
-            label: fmt_volume(y_min + range * 0.3333),
+            position: lower_pos,
+            label: fmt_volume(lower_pos),
         },
         Tick {
-            position: y_min + range * 0.6667,
-            label: fmt_volume(y_min + range * 0.6667),
+            position: upper_pos,
+            label: fmt_volume(upper_pos),
         },
     ]
 }

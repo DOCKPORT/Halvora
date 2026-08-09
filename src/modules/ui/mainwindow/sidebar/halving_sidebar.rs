@@ -27,6 +27,37 @@ fn fill_colors(sign: PLSign) -> (Color, Color) {
     }
 }
 
+/// Shared style for the YoY and halving buttons: P/L-tinted fill, hover
+/// highlight, and a thicker border when selected.
+fn button_style(sign: PLSign, is_selected: bool, status: button::Status) -> button::Style {
+    let (fill, fill_hover) = fill_colors(sign);
+
+    let background = match status {
+        button::Status::Hovered => fill_hover,
+        _ => fill,
+    };
+
+    let text_color = theme::HALVING_BUTTON_TEXT;
+
+    let border = if is_selected {
+        border::rounded(8)
+            .color(theme::HALVING_BUTTON_TEXT)
+            .width(1.5)
+    } else {
+        border::rounded(8)
+            .color(iced::Color::from_rgb(0.6, 0.6, 0.6))
+            .width(1.0)
+    };
+
+    button::Style {
+        background: Some(iced::Background::Color(background)),
+        text_color,
+        border,
+        shadow: iced::Shadow::default(),
+        snap: false,
+    }
+}
+
 pub fn view<'a>(
     selected_halving: Option<u32>,
     yoy_selected: bool,
@@ -184,34 +215,7 @@ fn yoy_button<'a>(
     .height(Length::Fixed(sp(36.0)))
     .padding(0)
     .on_press(Message::YoYSelected)
-    .style(move |_theme, status| {
-        let (fill, fill_hover) = fill_colors(sign);
-
-        let background = match status {
-            button::Status::Hovered => fill_hover,
-            _ => fill,
-        };
-
-        let text_color = theme::HALVING_BUTTON_TEXT;
-
-        let border = if is_selected {
-            border::rounded(8)
-                .color(theme::HALVING_BUTTON_TEXT)
-                .width(1.5)
-        } else {
-            border::rounded(8)
-                .color(iced::Color::from_rgb(0.6, 0.6, 0.6))
-                .width(1.0)
-        };
-
-        button::Style {
-            background: Some(iced::Background::Color(background)),
-            text_color,
-            border,
-            shadow: iced::Shadow::default(),
-            snap: false,
-        }
-    })
+    .style(move |_theme, status| button_style(sign, is_selected, status))
     .into()
 }
 
@@ -239,33 +243,6 @@ fn halving_button<'a>(
     .height(Length::Fixed(sp(36.0)))
     .padding(0)
     .on_press(Message::HalvingSelected(num))
-    .style(move |_theme, status| {
-        let (fill, fill_hover) = fill_colors(sign);
-
-        let background = match status {
-            button::Status::Hovered => fill_hover,
-            _ => fill,
-        };
-
-        let text_color = theme::HALVING_BUTTON_TEXT;
-
-        let border = if is_selected {
-            border::rounded(8)
-                .color(theme::HALVING_BUTTON_TEXT)
-                .width(1.5)
-        } else {
-            border::rounded(8)
-                .color(iced::Color::from_rgb(0.6, 0.6, 0.6))
-                .width(1.0)
-        };
-
-        button::Style {
-            background: Some(iced::Background::Color(background)),
-            text_color,
-            border,
-            shadow: iced::Shadow::default(),
-            snap: false,
-        }
-    })
+    .style(move |_theme, status| button_style(sign, is_selected, status))
     .into()
 }

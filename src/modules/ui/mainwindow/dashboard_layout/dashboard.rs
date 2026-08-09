@@ -20,6 +20,19 @@ fn ordinal_suffix(n: u32) -> &'static str {
     }
 }
 
+/// Format a block height with thousands separators, e.g. 1050000 -> "1,050,000".
+fn fmt_height(h: u64) -> String {
+    let s = h.to_string();
+    let mut result = String::with_capacity(s.len() + s.len() / 3);
+    for (i, c) in s.chars().enumerate() {
+        if i > 0 && (s.len() - i).is_multiple_of(3) {
+            result.push(',');
+        }
+        result.push(c);
+    }
+    result
+}
+
 pub fn view<'a>(
     selected_halving: Option<u32>,
     yoy_selected: bool,
@@ -150,17 +163,6 @@ pub fn view<'a>(
         // started halving, layered above the chart.
         let block_label: Option<Element<'a, crate::modules::ui::mainwindow::application::Message>> =
             chart_state.block_range.get().map(|(start, end)| {
-                fn fmt_height(h: u64) -> String {
-                    let s = h.to_string();
-                    let mut result = String::with_capacity(s.len() + s.len() / 3);
-                    for (i, c) in s.chars().enumerate() {
-                        if i > 0 && (s.len() - i).is_multiple_of(3) {
-                            result.push(',');
-                        }
-                        result.push(c);
-                    }
-                    result
-                }
                 container(
                     text(format!(
                         "BLOCK RANGE \u{2014} {} \u{2192} {}",
@@ -195,17 +197,6 @@ pub fn view<'a>(
         let subsidy_text = halving_subsidy.unwrap_or("\u{2014}");
 
         // Block range for the selected halving, e.g. H-5 -> "1,050,000 → 1,260,000".
-        fn fmt_height(h: u64) -> String {
-            let s = h.to_string();
-            let mut result = String::with_capacity(s.len() + s.len() / 3);
-            for (i, c) in s.chars().enumerate() {
-                if i > 0 && (s.len() - i).is_multiple_of(3) {
-                    result.push(',');
-                }
-                result.push(c);
-            }
-            result
-        }
         let block_range_text = selected_halving
             .and_then(crate::modules::compute::halving_period::halving_block_range)
             .map_or_else(

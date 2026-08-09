@@ -129,19 +129,15 @@ pub fn view<'a>(
         };
 
     let content = Column::with_children(vec![
-        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card("Spot Price", spot_value),
-        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card(
             "Block Height",
             value_text(height_str, theme::HALVING_BUTTON_TEXT),
         ),
-        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card(
             "Current Subsidy",
             value_text(subsidy_str, theme::HALVING_BUTTON_TEXT),
         ),
-        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card(
             "Mining Difficulty",
             value_text(
@@ -149,17 +145,14 @@ pub fn view<'a>(
                 theme::HALVING_BUTTON_TEXT,
             ),
         ),
-        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card(
             "Subsidy Value",
             value_text(subsidy_value.to_string(), theme::HALVING_BUTTON_TEXT),
         ),
-        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card(
             "Next Halving",
             value_text(next_halving_eta.to_string(), theme::HALVING_BUTTON_TEXT),
         ),
-        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card(
             "Blocks to Halving",
             value_text(
@@ -167,34 +160,29 @@ pub fn view<'a>(
                 theme::HALVING_BUTTON_TEXT,
             ),
         ),
-        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card(
             "Coins Minted",
             value_text(coins_issued.to_string(), theme::HALVING_BUTTON_TEXT),
         ),
-        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card(
             "Percentage Issued",
             value_text(percentage_issued.to_string(), theme::HALVING_BUTTON_TEXT),
         ),
-        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card(
             "Remaining Issuance",
             value_text(remaining_issuance.to_string(), theme::HALVING_BUTTON_TEXT),
         ),
-        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card(
             "Sats per USD",
             value_text(sats_per_usd.to_string(), theme::HALVING_BUTTON_TEXT),
         ),
-        iced::widget::space().height(Length::Fixed(sp(8.0))).into(),
         info_card(
             "All-Time High",
             value_text(all_time_high.to_string(), theme::HALVING_BUTTON_TEXT),
         ),
     ])
-    .spacing(0)
-    .padding(iced::Padding::new(0.0).left(sp(21.0)).right(sp(21.0)));
+    .spacing(sp(8.0))
+    .padding(iced::Padding::new(sp(8.0)).left(sp(21.0)).right(sp(21.0)));
 
     // Cross-hatch lines sit just below the labels layer, behind the info
     // cards. `Stack` places all children on top of each other but aligns them
