@@ -1,6 +1,7 @@
 use crate::modules::compute::metrics::{Metrics, PLSign};
 use crate::modules::compute::year_over_year::Candle;
 use crate::modules::ui::line_chart::LineChartState;
+use crate::modules::ui::line_chart::state::PageDrawings;
 use crate::modules::ui::mainwindow::about_dialog;
 use crate::modules::ui::mainwindow::app_icon;
 use crate::modules::ui::mainwindow::calmar_dialog;
@@ -14,6 +15,7 @@ use crate::modules::ui::splash_screen::state::{MainFadeInState, SplashState};
 use iced::widget::{container, mouse_area, row};
 use iced::window::Position;
 use iced::{Element, Font, Length, Subscription, window};
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 /// Embed the `GeistMono` font as fallback — the system-installed `SemiBold`
@@ -58,10 +60,25 @@ enum AppPhase {
     Main,
 }
 
+/// A stable key identifying which page the chart is showing. `None` is the
+/// Year-Over-Year page; `Some(n)` is halving number `n`. Used so each page
+/// keeps its own set of drawings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum PageKey {
+    Yoy,
+    Halving(u32),
+}
+
 struct Halvora {
     phase: AppPhase,
     selected_halving: Option<u32>,
     yoy_selected: bool,
+    /// One drawings bundle per page, so a VWAP or range stays on the page
+    /// where it was drawn and never leaks onto another page.
+    page_drawings: HashMap<PageKey, PageDrawings>,
+    /// The page key of the chart currently being shown, used to save that
+    /// page's drawings before switching to another.
+    active_page: PageKey,
     current_tip_height: u32,
     current_subsidy_sat: i64,
     mining_difficulty: f64,
@@ -195,6 +212,23 @@ impl Halvora {
         }
     }
 
+    /// Save the current page's drawings into the per-page collection, then
+    /// load the target page's drawings into the active chart. `target` is the
+    /// key of the page being switched to.
+    fn switch_page(state: &mut Self, target: PageKey) {
+        // If already on this page, do nothing.
+        if state.active_page == target {
+            return;
+        }
+        // Stash the old page's drawings.
+        let snapshot = state.line_chart_state.snapshot_drawings();
+        state.page_drawings.insert(state.active_page, snapshot);
+        // Load the target page's drawings (empty if first visit).
+        let drawings = state.page_drawings.entry(target).or_default().clone();
+        state.line_chart_state.restore_drawings(drawings);
+        state.active_page = target;
+    }
+
     fn new() -> Self {
         let current_tip_height = db_accessor::load_tip_height();
         let current_subsidy_sat = db_accessor::load_current_subsidy();
@@ -236,6 +270,8 @@ impl Halvora {
             phase: AppPhase::Splash(SplashState::new(SplashState::DURATION_SECS)),
             selected_halving: None,
             yoy_selected: true,
+            page_drawings: HashMap::new(),
+            active_page: PageKey::Yoy,
             current_tip_height,
             current_subsidy_sat,
             mining_difficulty,
@@ -379,6 +415,8 @@ fn update(state: &mut Halvora, message: Message) {
 
     match message {
         Message::HalvingSelected(n) => {
+            // Save the current page's drawings and load this halving's own set.
+            Halvora::switch_page(state, PageKey::Halving(n));
             state.selected_halving = Some(n);
             state.yoy_selected = false;
             // Show the block range in the top-left only for started halvings
@@ -434,6 +472,8 @@ fn update(state: &mut Halvora, message: Message) {
             state.line_chart_state.dialog_open.set(false);
         }
         Message::YoYSelected => {
+            // Save the current page's drawings and load the YOY page's own set.
+            Halvora::switch_page(state, PageKey::Yoy);
             state.yoy_selected = true;
             state.selected_halving = None;
             // YOY is not a halving period, so never show a block range.

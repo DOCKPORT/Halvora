@@ -21,6 +21,14 @@ pub struct RangeBox {
     pub to_price: f64,
 }
 
+/// A snapshot of all user drawings on one page. Drawn VWAP anchors are stored
+/// as candle indices, and ranges are stored as price/time coordinates.
+#[derive(Debug, Clone, Default)]
+pub struct PageDrawings {
+    pub anchored_vwaps: Vec<usize>,
+    pub ranges: Vec<RangeBox>,
+}
+
 /// Holds all data and viewport state for the line chart.
 pub struct LineChartState {
     /// OHLC candles sorted by timestamp ascending.
@@ -95,6 +103,24 @@ impl LineChartState {
     /// Return a snapshot of all anchor candle indices.
     pub fn anchors(&self) -> Vec<usize> {
         self.anchored_vwaps.borrow().clone()
+    }
+
+    /// Capture the current page's drawings into a bundle so they can be
+    /// restored later when the user returns to this page.
+    pub fn snapshot_drawings(&self) -> PageDrawings {
+        PageDrawings {
+            anchored_vwaps: self.anchored_vwaps.borrow().clone(),
+            ranges: self.ranges.borrow().clone(),
+        }
+    }
+
+    /// Replace this page's drawings with the given bundle, and clear any
+    /// in-progress range placement. Call this when switching onto a page.
+    pub fn restore_drawings(&self, drawings: PageDrawings) {
+        self.anchored_vwaps.replace(drawings.anchored_vwaps);
+        self.ranges.replace(drawings.ranges);
+        self.range_pending.set(None);
+        self.range_preview.set(None);
     }
 
     /// Compute the visible X range (earliest to latest timestamp).
