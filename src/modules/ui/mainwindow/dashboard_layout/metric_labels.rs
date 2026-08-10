@@ -3,6 +3,7 @@ use crate::modules::ui::scaling::sp;
 use crate::modules::ui::theme;
 use iced::widget::{Row, container, text};
 use iced::{Color, Element, Length};
+use iced::widget::text::{LineHeight, Wrapping};
 
 /// Line chart colours reused for P/L indicators.
 const GREEN_LINE: Color = Color::from_rgb(0.0, 0.8, 0.3);
@@ -27,13 +28,17 @@ fn metric_card<'a>(
         text(label)
             .size(sp(15.0))
             .color(theme::HALVING_BUTTON_TEXT)
+            .wrapping(Wrapping::Word)
+            .width(Length::Fill)
             .into(),
         text(value)
             .size(sp(18.0))
             .width(Length::Fill)
+            .line_height(LineHeight::Relative(1.2))
             .align_x(text::Alignment::Right)
             .font(VALUE_FONT)
             .color(value_color)
+            .wrapping(Wrapping::None)
             .into(),
     ])
     .spacing(sp(4.0))

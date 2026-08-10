@@ -123,6 +123,11 @@ struct Halvora {
     /// A window resize awaiting debounced application. While set, a short
     /// poll runs; when the resize events settle, the scale factor is applied.
     pending_resize: Option<(iced::Size, Instant)>,
+    /// The most recent real window size observed. Updated on every resize
+    /// during the splash so the scale factor always reflects the true client
+    /// area by the time the dashboard first renders — otherwise the metric
+    /// row would overflow until a user resize corrected it.
+    latest_window_size: iced::Size,
 }
 
 impl Halvora {
@@ -301,6 +306,7 @@ impl Halvora {
             show_calmar_dialog: false,
             show_about_dialog: false,
             pending_resize: None,
+            latest_window_size: Scaling::global().screen_size,
         };
         Self::refresh_halving_signs(&mut state);
         state
@@ -393,6 +399,11 @@ fn update(state: &mut Halvora, message: Message) {
             };
             s.advance(elapsed);
             if s.is_finished() {
+                // Reconcile the factor from the latest true window size before
+                // the dashboard's first frame, so the metric row never renders
+                // at a stale scale.
+                Scaling::global()
+                    .set_window_size(state.latest_window_size.width, state.latest_window_size.height);
                 state.phase =
                     AppPhase::MainFadeIn(MainFadeInState::new(MainFadeInState::FADE_IN_SECS));
             }
@@ -658,14 +669,19 @@ fn update(state: &mut Halvora, message: Message) {
                 .set(crate::modules::ui::line_chart::state::DrawingMode::Range);
         }
         Message::WindowResized(size) => {
-            // During the splash, this is the first opportunity to learn the
-            // true window size. Apply the scale factor immediately (no
-            // debounce) and mark the splash ready, so the splash first
-            // renders at the correct scale — no startup jump.
-            if let AppPhase::Splash(s) = &mut state.phase {
-                if !s.is_ready() {
-                    crate::modules::ui::scaling::Scaling::global()
-                        .set_window_size(size.width, size.height);
+            // Remember the most recent real window size, so the factor can be
+            // reconciled from the true client area when the dashboard shows.
+            state.latest_window_size = size;
+            // During the splash or fade-in, apply the factor immediately on
+            // every resize (no debounce). The scaling module ignores no-op
+            // updates, and doing so keeps the factor in sync with the final
+            // maximized client area before the dashboard first renders —
+            // otherwise the metric row overflows until a user resize.
+            if matches!(state.phase, AppPhase::Splash(_) | AppPhase::MainFadeIn(_)) {
+                Scaling::global().set_window_size(size.width, size.height);
+                if let AppPhase::Splash(s) = &mut state.phase
+                    && !s.is_ready()
+                {
                     s.mark_ready();
                 }
                 return;

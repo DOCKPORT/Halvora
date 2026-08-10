@@ -30,9 +30,17 @@ pub fn view(
 ) -> Element<'_, crate::modules::ui::mainwindow::application::Message> {
     // Hold a completely empty frame until the true window size (and thus the
     // scale factor) is known. Rendering nothing avoids any size-dependent
-    // content at the wrong scale, which would cause a startup jump.
+    // content at the wrong scale, which would cause a startup jump. The frame
+    // stays dark so the window never flashes white before the splash paints.
     if !state.is_ready() {
-        return Space::new().width(Length::Fill).height(Length::Fill).into();
+        return container(Space::new().width(Length::Fill).height(Length::Fill))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .style(|_theme| container::Style {
+                background: Some(iced::Background::Color(theme::SPLASH_BACKGROUND)),
+                ..Default::default()
+            })
+            .into();
     }
 
     // Current fade opacity in the range 0.0..=1.0.
@@ -97,10 +105,11 @@ pub fn view(
         .height(Length::Fill)
         .align_x(iced::Alignment::Center)
         .align_y(iced::Alignment::Center)
+        // Opaque at all times: the fade animates the foreground elements, but
+        // the base canvas must never go transparent or the window's default
+        // (white) background would show through as a flash.
         .style(move |_theme| container::Style {
-            background: Some(iced::Background::Color(
-                theme::SPLASH_BACKGROUND.scale_alpha(opacity),
-            )),
+            background: Some(iced::Background::Color(theme::SPLASH_BACKGROUND)),
             ..Default::default()
         })
         .into()
