@@ -1,6 +1,6 @@
 [package]
 name = "halvora"
-version = "0.30.1"
+version = "1.0.0-pre"
 edition = "2024"
 
 [dependencies]
