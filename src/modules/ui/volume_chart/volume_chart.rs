@@ -170,13 +170,14 @@ impl<Message> canvas::Program<Message> for VolumeChartProgram<'_> {
 
 // ── Layout ───────────────────────────────────────────────────────────────
 
-/// Plot area with padding. Left 60px for labels, bottom 40px for breathing room.
+/// Plot area with padding. Left 60px for labels, with equal top and bottom
+/// spacing for the volume tooltip and breathing room.
 fn padded_plot_area(bounds: Rectangle) -> Rectangle {
     Rectangle {
         x: 60.0,
-        y: 25.0,
+        y: 20.0,
         width: bounds.width - 120.0,
-        height: bounds.height - 50.0,
+        height: bounds.height - 40.0,
     }
 }
 

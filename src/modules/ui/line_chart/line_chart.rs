@@ -793,13 +793,13 @@ fn draw_crosshair(
             content: text.to_string(),
             position: Point::new(x, y),
             color,
-            size: sp(14.0).into(),
+            size: sp(16.0).into(),
             font: iced::Font::with_name("Geist Mono"),
             align_x: text::Alignment::Left,
             align_y: iced::alignment::Vertical::Top,
             ..canvas::Text::default()
         });
-        x + text.chars().count() as f32 * sp(14.0) * 0.6
+        x + text.chars().count() as f32 * sp(16.0) * 0.6
     };
 
     let y = plot.y + 4.0;

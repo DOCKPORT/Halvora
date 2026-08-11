@@ -25,11 +25,7 @@ pub const HALVING_BUTTON_HOVER: Color = Color::from_rgb(
     0x4a as f32 / 255.0,
 );
 
-pub const HALVING_BUTTON_TEXT: Color = Color::from_rgb(
-    0xcc as f32 / 255.0,
-    0xcc as f32 / 255.0,
-    0xcc as f32 / 255.0,
-);
+pub const HALVING_BUTTON_TEXT: Color = Color::WHITE;
 
 /// Sidebar button fills keyed to the period's P/L sign, matching the chart
 /// line colors used elsewhere in the UI. Fully opaque, using darker shades so

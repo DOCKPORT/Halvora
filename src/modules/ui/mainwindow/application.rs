@@ -43,6 +43,7 @@ pub fn run() -> iced::Result {
     };
 
     iced::application(Halvora::new, update, view)
+        .title("Halvora")
         .font(GEIST_MONO_BYTES)
         .default_font(Font::with_name("Geist Mono"))
         .window(window_settings)

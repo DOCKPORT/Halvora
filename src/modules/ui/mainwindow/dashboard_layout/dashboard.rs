@@ -169,7 +169,7 @@ pub fn view<'a>(
                         fmt_height(start),
                         fmt_height(end),
                     ))
-                    .size(sp(14.0))
+                    .size(sp(16.0))
                     .font(iced::Font::with_name("Geist Mono"))
                     .color(theme::HALVING_BUTTON_TEXT),
                 )
@@ -219,7 +219,7 @@ pub fn view<'a>(
                     .font(iced::Font::with_name("Geist Mono"))
                     .color(theme::HALVING_BUTTON_TEXT),
                 text(format!("BLOCK RANGE \u{2014} {block_range_text}"))
-                    .size(sp(18.0))
+                    .size(sp(16.0))
                     .font(iced::Font::with_name("Geist Mono"))
                     .color(theme::HALVING_BUTTON_TEXT),
             ]

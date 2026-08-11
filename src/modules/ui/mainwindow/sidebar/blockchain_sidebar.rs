@@ -29,7 +29,7 @@ fn value_text<'a>(
     color: Color,
 ) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
     text(content)
-        .size(sp(16.0))
+        .size(sp(17.0))
         .font(iced::Font {
             family: iced::font::Family::Name("Geist Mono"),
             weight: iced::font::Weight::Semibold,
@@ -46,7 +46,7 @@ fn info_card<'a>(
 ) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
     let inner = Column::with_children(vec![
         text(title)
-            .size(sp(14.0))
+            .size(sp(15.0))
             .color(theme::HALVING_BUTTON_TEXT)
             .into(),
         value,

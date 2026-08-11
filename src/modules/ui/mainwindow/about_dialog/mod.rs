@@ -24,12 +24,12 @@ const GITHUB_SVG: &[u8] = include_bytes!(concat!(
 pub fn view<'a>() -> Element<'a, Message> {
     let inner = iced::widget::column![
         text(format!("Version {}", env!("CARGO_PKG_VERSION")))
-            .size(sp(18.0))
-            .color(Color::from_rgb(0.9, 0.9, 0.9))
+            .size(sp(20.0))
+            .color(Color::WHITE)
             .font(iced::Font::with_name("Geist Mono")),
         text("\u{2500}")
-            .size(sp(12.0))
-            .color(Color::from_rgb(0.4, 0.4, 0.4))
+            .size(sp(13.0))
+            .color(Color::WHITE)
             .font(iced::Font::with_name("Geist Mono")),
         text(
             "Halvora tracks all 32 Bitcoin halvings and their price action. \
@@ -37,19 +37,19 @@ It provides block-height precision, anchored chart analysis, and \
 performance metrics across every epoch, from genesis to the final \
 block subsidy.",
         )
-        .size(sp(16.0))
-        .color(Color::from_rgb(0.9, 0.9, 0.9))
+        .size(sp(18.0))
+        .color(Color::WHITE)
         .font(iced::Font::with_name("Geist Mono")),
         text("\u{2500}")
-            .size(sp(12.0))
-            .color(Color::from_rgb(0.4, 0.4, 0.4))
+            .size(sp(13.0))
+            .color(Color::WHITE)
             .font(iced::Font::with_name("Geist Mono")),
         // The GitHub icon is the hyperlink; clicking it opens the repo.
         button(
             svg::Svg::new(svg::Handle::from_memory(GITHUB_SVG))
                 .content_fit(ContentFit::Contain)
-                .width(Length::Fixed(sp(32.0)))
-                .height(Length::Fixed(sp(32.0))),
+                .width(Length::Fixed(sp(40.0)))
+                .height(Length::Fixed(sp(40.0))),
         )
         .padding(sp(8.0))
         .on_press(Message::OpenGithub)
@@ -63,7 +63,7 @@ block subsidy.",
             text_color: Default::default(),
             snap: false,
         }),
-        button(text("Close").size(sp(14.0)).color(Color::WHITE),)
+        button(text("Close").size(sp(16.0)).color(Color::WHITE),)
             .on_press(Message::CloseAboutDialog)
             .padding(iced::Padding::new(sp(8.0)).horizontal(sp(16.0)))
             .style(|_theme, _status| button::Style {

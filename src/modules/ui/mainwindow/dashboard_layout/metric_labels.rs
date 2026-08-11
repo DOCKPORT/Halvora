@@ -26,13 +26,13 @@ fn metric_card<'a>(
 ) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
     let inner = iced::widget::Column::with_children(vec![
         text(label)
-            .size(sp(15.0))
+            .size(sp(16.0))
             .color(theme::HALVING_BUTTON_TEXT)
             .wrapping(Wrapping::Word)
             .width(Length::Fill)
             .into(),
         text(value)
-            .size(sp(18.0))
+            .size(sp(19.0))
             .width(Length::Fill)
             .line_height(LineHeight::Relative(1.2))
             .align_x(text::Alignment::Right)
