@@ -44,10 +44,11 @@ Terminal=false
 DESKEOF
 
 # AppStream metadata and screenshot so desktop environments and app stores
-# can show a description and preview image.
+# can show a description and preview image. The metadata lives at the project
+# root (metainfo/), mounted here at /build/metainfo/.
 mkdir -p "$APPDIR/usr/share/metainfo"
-cp /build/binary/metainfo/halvora.appdata.xml "$APPDIR/usr/share/metainfo/halvora.appdata.xml"
-cp /build/binary/metainfo/halvora-screenshot.png "$APPDIR/usr/share/metainfo/halvora-screenshot.png"
+cp /build/metainfo/halvora.appdata.xml "$APPDIR/usr/share/metainfo/halvora.appdata.xml"
+cp /build/metainfo/halvora-screenshot.png "$APPDIR/usr/share/metainfo/halvora-screenshot.png"
 
 echo "================================"
 echo " Running appimagetool..."
