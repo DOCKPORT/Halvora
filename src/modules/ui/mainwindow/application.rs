@@ -14,7 +14,8 @@ use crate::modules::ui::splash_screen::splash;
 use crate::modules::ui::splash_screen::state::{MainFadeInState, SplashState};
 use iced::widget::{container, mouse_area, row};
 use iced::window::Position;
-use iced::{Element, Font, Length, Subscription, window};
+use iced::futures::channel::oneshot;
+use iced::{Element, Font, Length, Subscription, Task, window};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -129,6 +130,9 @@ struct Halvora {
     /// area by the time the dashboard first renders — otherwise the metric
     /// row would overflow until a user resize corrected it.
     latest_window_size: iced::Size,
+    /// Whether the startup data fetches have completed. The splash holds on
+    /// screen until this is true, so users see the logo during all of startup.
+    startup_data_ready: bool,
 }
 
 impl Halvora {
@@ -235,7 +239,77 @@ impl Halvora {
         state.active_page = target;
     }
 
-    fn new() -> Self {
+    /// Returns the app state plus a startup command that fetches the network
+    /// data in the background, so the splash screen stays visible while the
+    /// API calls run instead of the user staring at a blank window.
+    fn new() -> (Self, Task<Message>) {
+        let state = Self {
+            phase: AppPhase::Splash(SplashState::new(SplashState::DURATION_SECS)),
+            selected_halving: None,
+            yoy_selected: true,
+            page_drawings: HashMap::new(),
+            active_page: PageKey::Yoy,
+            current_tip_height: 0,
+            current_subsidy_sat: 0,
+            mining_difficulty: 0.0,
+            next_halving_eta: String::new(),
+            blocks_to_next_halving: String::new(),
+            coins_issued: String::new(),
+            percentage_issued: String::new(),
+            remaining_issuance: String::new(),
+            live_price: None,
+            ws_flash: None,
+            subsidy_value: String::new(),
+            sats_per_usd: String::new(),
+            all_time_high: String::new(),
+            session_high: 0.0,
+            metrics: crate::modules::compute::metrics::compute(&[], None),
+            yoy_pl_sign: PLSign::NoChange,
+            halving_pl_signs: vec![PLSign::NoChange; 33],
+            current_halving: 0,
+            selected_halving_eta: None,
+            selected_halving_subsidy: None,
+            subsidy_label: String::new(),
+            yoy_candles: Vec::new(),
+            line_chart_state: LineChartState::new(Vec::new()),
+            volume_sync_start: Instant::now(),
+            show_calmar_dialog: false,
+            show_about_dialog: false,
+            pending_resize: None,
+            latest_window_size: Scaling::global().screen_size,
+            startup_data_ready: false,
+        };
+
+        // Fetch the halving blocks and candles on a dedicated OS thread so the
+        // UI thread never blocks. The fetches use `reqwest::blocking`, which
+        // must not run inside iced's async runtime (it panics there), so they
+        // live on a plain thread and signal completion through a channel. When
+        // both finish, the app reloads its data from the database and the
+        // splash can transition to the dashboard.
+        let (startup_done_tx, startup_done_rx) = oneshot::channel();
+        std::thread::spawn(move || {
+            crate::modules::api::mempool::rest::halve_blocks::fetch_and_store();
+            crate::modules::api::bit_stamp::candle_sync::fetch_and_store();
+            let _ = startup_done_tx.send(());
+        });
+
+        let task = Task::perform(
+            async move {
+                // Await the completion signal from the fetch thread. If the
+                // thread panics, the sender drops and the await errors; either
+                // way the task resolves and the app proceeds.
+                let _ = startup_done_rx.await;
+            },
+            |_| Message::StartupDataReady,
+        );
+
+        (state, task)
+    }
+
+    /// Reload all dashboard data from the database. Called once on startup,
+    /// after the background fetches complete, so the dashboard first appears
+    /// fully populated. Populates the fields that were stubbed in `new()`.
+    fn load_startup_data(state: &mut Self) {
         let current_tip_height = db_accessor::load_tip_height();
         let current_subsidy_sat = db_accessor::load_current_subsidy();
         let mining_difficulty = db_accessor::load_mining_difficulty();
@@ -272,45 +346,28 @@ impl Halvora {
             crate::modules::compute::price_stats::subsidy_value(seeded_price, current_subsidy_sat);
         let sats_per_usd = crate::modules::compute::price_stats::sats_per_usd(seeded_price);
 
-        let mut state = Self {
-            phase: AppPhase::Splash(SplashState::new(SplashState::DURATION_SECS)),
-            selected_halving: None,
-            yoy_selected: true,
-            page_drawings: HashMap::new(),
-            active_page: PageKey::Yoy,
-            current_tip_height,
-            current_subsidy_sat,
-            mining_difficulty,
-            next_halving_eta,
-            blocks_to_next_halving,
-            coins_issued,
-            percentage_issued,
-            remaining_issuance,
-            live_price: seeded_price,
-            ws_flash: None,
-            subsidy_value,
-            sats_per_usd,
-            all_time_high,
-            session_high,
-            metrics,
-            yoy_pl_sign: PLSign::NoChange,
-            halving_pl_signs: vec![PLSign::NoChange; 33],
-            current_halving: 0,
-            selected_halving_eta: None,
-            selected_halving_subsidy: None,
-            subsidy_label: crate::modules::compute::halving_period::subsidy_btc_from_sat(
-                current_subsidy_sat,
-            ),
-            yoy_candles: candles.clone(),
-            line_chart_state: LineChartState::new(candles),
-            volume_sync_start: Instant::now(),
-            show_calmar_dialog: false,
-            show_about_dialog: false,
-            pending_resize: None,
-            latest_window_size: Scaling::global().screen_size,
-        };
-        Self::refresh_halving_signs(&mut state);
-        state
+        state.current_tip_height = current_tip_height;
+        state.current_subsidy_sat = current_subsidy_sat;
+        state.mining_difficulty = mining_difficulty;
+        state.next_halving_eta = next_halving_eta;
+        state.blocks_to_next_halving = blocks_to_next_halving;
+        state.coins_issued = coins_issued;
+        state.percentage_issued = percentage_issued;
+        state.remaining_issuance = remaining_issuance;
+        state.live_price = seeded_price;
+        state.subsidy_value = subsidy_value;
+        state.sats_per_usd = sats_per_usd;
+        state.all_time_high = all_time_high;
+        state.session_high = session_high;
+        state.metrics = metrics;
+        state.subsidy_label =
+            crate::modules::compute::halving_period::subsidy_btc_from_sat(current_subsidy_sat);
+        state.yoy_candles = candles.clone();
+        state.line_chart_state = LineChartState::new(candles);
+        state.volume_sync_start = Instant::now();
+
+        Self::refresh_halving_signs(state);
+        state.startup_data_ready = true;
     }
 }
 
@@ -338,6 +395,9 @@ pub enum Message {
     ResizePoll,
     /// Advances splash progress by the elapsed time since start.
     SplashTick,
+    /// Fired when the startup data fetches finish. Loads the dashboard data
+    /// from the database; the splash holds on screen until this happens.
+    StartupDataReady,
 }
 
 /// How often the resize poll ticks while a resize is pending.
@@ -399,7 +459,10 @@ fn update(state: &mut Halvora, message: Message) {
                 0.0
             };
             s.advance(elapsed);
-            if s.is_finished() {
+            // Transition only once the timer has elapsed AND the startup data
+            // has loaded. If the fetches are still running, the splash holds on
+            // screen so users see the logo during all of startup.
+            if s.is_finished() && state.startup_data_ready {
                 // Reconcile the factor from the latest true window size before
                 // the dashboard's first frame, so the metric row never renders
                 // at a stale scale.
@@ -704,6 +767,11 @@ fn update(state: &mut Halvora, message: Message) {
         }
         Message::SplashTick => {
             // Handled above; unreachable once the phase is Main.
+        }
+        Message::StartupDataReady => {
+            // The background fetches finished; reload the dashboard data from
+            // the database. The splash then transitions once its timer ends.
+            Halvora::load_startup_data(state);
         }
         Message::NewDay(_ts) => {
             // Midnight rollover — fetch the new day's candle and refresh the cache.
