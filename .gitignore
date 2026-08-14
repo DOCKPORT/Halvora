@@ -8,3 +8,5 @@
 /Element
 /Pipeline
 /binary
+!/binary/
+!/binary/metainfo/

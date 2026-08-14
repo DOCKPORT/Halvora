@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Halvora
+Comment=Bitcoin halving tracker
+Exec=halvora
+Icon=halvoralogo
+Type=Application
+Categories=Office;Finance;Chart;
+Terminal=false
