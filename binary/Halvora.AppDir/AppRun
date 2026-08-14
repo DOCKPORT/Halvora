@@ -1,5 +1,0 @@
-#!/bin/bash
-export NO_AT_BRIDGE=1
-# Suppress harmless GTK module loading failures (e.g. xapp-gtk3-module missing)
-exec 2> >(grep -v 'Failed to load module' >&2)
-exec "${APPDIR}/usr/bin/halvora"
