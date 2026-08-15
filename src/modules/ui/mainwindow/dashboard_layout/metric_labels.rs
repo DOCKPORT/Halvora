@@ -1,9 +1,9 @@
 use crate::modules::compute::metrics::Metrics;
 use crate::modules::ui::scaling::sp;
 use crate::modules::ui::theme;
+use iced::widget::text::{LineHeight, Wrapping};
 use iced::widget::{Row, container, text};
 use iced::{Color, Element, Length};
-use iced::widget::text::{LineHeight, Wrapping};
 
 /// Line chart colours reused for P/L indicators.
 const GREEN_LINE: Color = Color::from_rgb(0.0, 0.8, 0.3);

@@ -24,10 +24,7 @@ pub fn view(metrics: &Metrics) -> Element<'_, Message> {
             .size(sp(24.0))
             .color(Color::WHITE)
             .font(FONT),
-        text("─")
-            .size(sp(14.0))
-            .color(Color::WHITE)
-            .font(FONT),
+        text("─").size(sp(14.0)).color(Color::WHITE).font(FONT),
         text("Formula: Annualized Return ÷ Max Drawdown")
             .size(sp(16.0))
             .color(Color::WHITE)
@@ -48,10 +45,7 @@ pub fn view(metrics: &Metrics) -> Element<'_, Message> {
             .size(sp(15.0))
             .color(Color::WHITE)
             .font(FONT),
-        text("─")
-            .size(sp(14.0))
-            .color(Color::WHITE)
-            .font(FONT),
+        text("─").size(sp(14.0)).color(Color::WHITE).font(FONT),
         text(format!("Weighted Avg P/L:  {}", breakdown.weighted_avg_pl))
             .size(sp(17.0))
             .color(Color::WHITE)

@@ -12,9 +12,9 @@ use crate::modules::ui::mainwindow::sidebar::halving_sidebar;
 use crate::modules::ui::scaling::Scaling;
 use crate::modules::ui::splash_screen::splash;
 use crate::modules::ui::splash_screen::state::{MainFadeInState, SplashState};
+use iced::futures::channel::oneshot;
 use iced::widget::{container, mouse_area, row};
 use iced::window::Position;
-use iced::futures::channel::oneshot;
 use iced::{Element, Font, Length, Subscription, Task, window};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -466,8 +466,10 @@ fn update(state: &mut Halvora, message: Message) {
                 // Reconcile the factor from the latest true window size before
                 // the dashboard's first frame, so the metric row never renders
                 // at a stale scale.
-                Scaling::global()
-                    .set_window_size(state.latest_window_size.width, state.latest_window_size.height);
+                Scaling::global().set_window_size(
+                    state.latest_window_size.width,
+                    state.latest_window_size.height,
+                );
                 state.phase =
                     AppPhase::MainFadeIn(MainFadeInState::new(MainFadeInState::FADE_IN_SECS));
             }
