@@ -59,3 +59,5 @@ Halvora is available as an AppImage which means "one app = one file", which you 
 AppImages are single-file applications that run on most Linux distributions. Download an application, make it executable, and run! No need to install. No system libraries or system preferences are altered. 
 
 Unlike other applications, AppImages do not need to be installed before they can be used. However, they need to be marked as executable before they can be run. This is a Linux security feature.
+
+Visit the releases page to find the latest AppImage release here: https://github.com/DOCKPORT/Halvora/releases
