@@ -175,6 +175,31 @@ impl Halvora {
         }
     }
 
+    /// Make the last candle of a candle set identical to the canonical
+    /// in-memory today candle, when that candle is today's.
+    ///
+    /// The live halving period ends at today, so its last candle is the same
+    /// day as the YoY chart's last candle. Both charts must therefore show
+    /// the same high/low/close. Completed halvings end in the past, so the
+    /// overlay is a no-op for them.
+    fn apply_canonical_today(
+        candles: &mut Vec<Candle>,
+        canonical_today: Option<&Candle>,
+        today_midnight: i64,
+    ) {
+        let Some(today) = canonical_today else {
+            return;
+        };
+        if today.timestamp != today_midnight {
+            return;
+        }
+        if let Some(last) = candles.last_mut()
+            && last.timestamp == today_midnight
+        {
+            *last = *today;
+        }
+    }
+
     /// Highest halving number with candle data, i.e. the currently live halving.
     ///
     /// Returns `0` when no halving has data yet.
@@ -519,26 +544,16 @@ fn update(state: &mut Halvora, message: Message) {
             // empty set, so `metrics::compute` naturally produces dashes.
             // Use set_candles so the drawing tool and drawings are preserved.
             let mut candles = crate::modules::compute::halving_period::halving_period_candles(n);
-            // Use the in-memory websocket price for today's partial candle so
-            // the chart reflects the live price immediately instead of the
-            // last DB-synced close (which only updates on the next tick).
-            if let Some(price) = state.live_price {
-                let now = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .map_or(0, |d| d.as_secs() as i64);
-                let today_midnight = now - (now % 86_400);
-                if let Some(last) = candles.last_mut()
-                    && last.timestamp == today_midnight
-                {
-                    last.close = price;
-                    if price > last.high {
-                        last.high = price;
-                    }
-                    if price < last.low {
-                        last.low = price;
-                    }
-                }
-            }
+            // Mirror the canonical in-memory today candle (the YoY chart's
+            // last candle) onto this halving's last candle. For the live
+            // halving the period ends today, so any high/low/close already
+            // accumulated in memory on the YoY chart appears here too.
+            // Completed halvings end in the past, so they are unaffected.
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.as_secs() as i64);
+            let today_midnight = now - (now % 86_400);
+            Halvora::apply_canonical_today(&mut candles, state.yoy_candles.last(), today_midnight);
             state.line_chart_state.set_candles(candles);
             state.metrics = crate::modules::compute::metrics::compute(
                 &state.line_chart_state.candles,
@@ -616,17 +631,27 @@ fn update(state: &mut Halvora, message: Message) {
                 let candles = crate::modules::compute::year_over_year::trailing_365_candles();
                 state.yoy_candles = candles;
                 state.volume_sync_start = Instant::now();
-                // Only refresh the active page when YOY is selected; halving
-                // pages keep their empty candle set and dash metrics.
+                // Refresh the active page so the today candle stays identical
+                // on every chart after the DB reload.
                 if state.yoy_selected {
                     state
                         .line_chart_state
                         .set_candles(state.yoy_candles.clone());
-                    state.metrics = crate::modules::compute::metrics::compute(
-                        &state.line_chart_state.candles,
-                        Halvora::metric_current_price(state),
+                } else {
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map_or(0, |d| d.as_secs() as i64);
+                    let today_midnight = now - (now % 86_400);
+                    Halvora::apply_canonical_today(
+                        &mut state.line_chart_state.candles,
+                        state.yoy_candles.last(),
+                        today_midnight,
                     );
                 }
+                state.metrics = crate::modules::compute::metrics::compute(
+                    &state.line_chart_state.candles,
+                    Halvora::metric_current_price(state),
+                );
             }
         }
         Message::WsFlashTick => {
@@ -680,17 +705,14 @@ fn update(state: &mut Halvora, message: Message) {
                     .line_chart_state
                     .set_candles(state.yoy_candles.clone());
             }
-            if let Some(last) = state.line_chart_state.candles.last_mut()
-                && last.timestamp == today_midnight
-            {
-                if price > last.high {
-                    last.high = price;
-                }
-                if price < last.low {
-                    last.low = price;
-                }
-                last.close = price;
-            }
+            // Mirror the canonical today candle onto the active chart so the
+            // high/low/close can never diverge between the YoY and halving
+            // pages, regardless of which one the user is viewing.
+            Halvora::apply_canonical_today(
+                &mut state.line_chart_state.candles,
+                state.yoy_candles.last(),
+                today_midnight,
+            );
             state.metrics = crate::modules::compute::metrics::compute(
                 &state.line_chart_state.candles,
                 Halvora::metric_current_price(state),
@@ -783,17 +805,27 @@ fn update(state: &mut Halvora, message: Message) {
             state.volume_sync_start = Instant::now();
             // The new day may change which period is live, so refresh all signs.
             Halvora::refresh_halving_signs(state);
-            // Only refresh the active page when YOY is selected; halving
-            // pages keep their empty candle set and dash metrics.
+            // Refresh the active page so the today candle stays identical on
+            // every chart after the rollover.
             if state.yoy_selected {
                 state
                     .line_chart_state
                     .set_candles(state.yoy_candles.clone());
-                state.metrics = crate::modules::compute::metrics::compute(
-                    &state.line_chart_state.candles,
-                    state.live_price,
+            } else {
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_or(0, |d| d.as_secs() as i64);
+                let today_midnight = now - (now % 86_400);
+                Halvora::apply_canonical_today(
+                    &mut state.line_chart_state.candles,
+                    state.yoy_candles.last(),
+                    today_midnight,
                 );
             }
+            state.metrics = crate::modules::compute::metrics::compute(
+                &state.line_chart_state.candles,
+                state.live_price,
+            );
         }
     }
 }
