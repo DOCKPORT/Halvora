@@ -1,8 +1,8 @@
 //! The "About Halvora" dialog, opened by clicking the logo in the sidebar.
 //!
 //! Styled to match the Calmar ratio details dialog: a dim full-screen overlay
-//! with a centered, rounded card. Shows the app version, a short description,
-//! and the GitHub icon as a clickable link to the source repository.
+//! with a centered, rounded card. Shows the app version and the GitHub icon
+//! as a clickable link to the source repository.
 
 use crate::modules::ui::mainwindow::application::Message;
 use crate::modules::ui::mainwindow::dialog_chrome;
@@ -23,23 +23,10 @@ const GITHUB_SVG: &[u8] = include_bytes!(concat!(
 /// `mouse_area`) so the modal blocks interaction behind it.
 pub fn view<'a>() -> Element<'a, Message> {
     let inner = iced::widget::column![
-        text(format!("Version {}", env!("CARGO_PKG_VERSION")))
+        text(env!("CARGO_PKG_VERSION"))
             .size(sp(20.0))
             .color(Color::WHITE)
             .font(iced::Font::with_name("Geist Mono")),
-        text("\u{2500}")
-            .size(sp(13.0))
-            .color(Color::WHITE)
-            .font(iced::Font::with_name("Geist Mono")),
-        text(
-            "Halvora tracks all 32 Bitcoin halvings and their price action. \
-It provides block-height precision, anchored chart analysis, and \
-performance metrics across every epoch, from genesis to the final \
-block subsidy.",
-        )
-        .size(sp(18.0))
-        .color(Color::WHITE)
-        .font(iced::Font::with_name("Geist Mono")),
         text("\u{2500}")
             .size(sp(13.0))
             .color(Color::WHITE)
@@ -75,6 +62,7 @@ block subsidy.",
             }),
     ]
     .spacing(sp(12.0))
+    .width(Length::Fill)
     .align_x(iced::Alignment::Center)
     .padding(sp(32.0));
 

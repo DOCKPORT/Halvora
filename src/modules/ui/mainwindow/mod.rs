@@ -5,4 +5,5 @@ pub mod calmar_dialog;
 pub mod dashboard_layout;
 pub mod db_accessor;
 pub mod dialog_chrome;
+pub mod position_dialog;
 pub mod sidebar;

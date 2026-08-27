@@ -1,8 +1,17 @@
 use crate::modules::ui::scaling::sp;
 use crate::modules::ui::theme;
 use crate::modules::ui::ws_flash::{self, WsFlash};
-use iced::widget::{Column, container, row, scrollable, stack, text};
+use iced::widget::{Column, button, container, row, scrollable, stack, text};
 use iced::{Color, Element, Length};
+
+/// Text color for a positive position P/L, matching the metric bar.
+const POSITION_UP: Color = Color::from_rgb(0.0, 0.8, 0.3);
+
+/// Text color for a negative position P/L, matching the metric bar.
+const POSITION_DOWN: Color = Color::from_rgb(1.0, 0.1, 0.05);
+
+/// Text color for a position P/L with no usable data, matching the metric bar.
+const POSITION_FLAT: Color = Color::from_rgb(0.5, 0.5, 0.5);
 
 /// Format a raw mining difficulty as a compact value, for example
 /// `126231507121868.2` becomes `126.23T`. Returns an em-dash when the value
@@ -66,6 +75,69 @@ fn info_card<'a>(
         .into()
 }
 
+/// P/L percent of the stored position against the live price:
+/// `(price - dca) / dca * 100`. `None` when no position is set, the balance
+/// or DCA is non-positive, or no live price is available yet.
+fn position_pl_pct(position: Option<(f64, f64)>, live_price: Option<f64>) -> Option<f64> {
+    let (balance, dca) = position?;
+    let price = live_price?;
+    if balance <= 0.0 || dca <= 0.0 {
+        return None;
+    }
+    Some((price - dca) / dca * 100.0)
+}
+
+/// The clickable "Position" card at the top of the blockchain sidebar. Shows
+/// the stored position's P/L against the websocket price and opens the
+/// Position dialog when clicked.
+fn position_card<'a>(
+    position: Option<(f64, f64)>,
+    live_price: Option<f64>,
+) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
+    use crate::modules::ui::mainwindow::application::Message;
+
+    // P/L percent using the ▲/▼ and color convention of the metric bar.
+    let pl = position_pl_pct(position, live_price);
+    let (pl_text, pl_color) = match pl {
+        Some(change) if change >= 0.0 => (format!("\u{25B2} {change:.2}%"), POSITION_UP),
+        Some(change) => (format!("\u{25BC} {:.2}%", -change), POSITION_DOWN),
+        None => ("\u{2014}".to_string(), POSITION_FLAT),
+    };
+
+    // The card shows only the P/L against the websocket price, matching the
+    // other info cards. The dialog holds the balance and DCA details.
+    let inner = Column::with_children(vec![
+        text("Position")
+            .size(sp(15.0))
+            .color(theme::HALVING_BUTTON_TEXT)
+            .into(),
+        value_text(pl_text, pl_color),
+    ])
+    .spacing(sp(4.0))
+    .padding(iced::Padding::new(sp(8.0)));
+
+    // `padding(0)` keeps the button's bounds identical to the info cards, so
+    // the border hugs the content the same way. The hover fill matches the
+    // Calmar card in the metric bar.
+    button(inner)
+        .width(Length::Fill)
+        .padding(0)
+        .on_press(Message::PositionClicked)
+        .style(|_theme, status| button::Style {
+            background: Some(iced::Background::Color(match status {
+                button::Status::Hovered => theme::HALVING_BUTTON_HOVER,
+                _ => theme::HALVING_BUTTON_BACKGROUND,
+            })),
+            border: iced::border::rounded(8)
+                .color(iced::Color::from_rgb(0.6, 0.6, 0.6))
+                .width(1.0),
+            text_color: Default::default(),
+            shadow: Default::default(),
+            snap: true,
+        })
+        .into()
+}
+
 pub fn view<'a>(
     current_tip_height: u32,
     current_subsidy_sat: i64,
@@ -76,6 +148,7 @@ pub fn view<'a>(
     percentage_issued: &str,
     remaining_issuance: &str,
     live_price: Option<f64>,
+    position: Option<(f64, f64)>,
     spot_flash: Option<&WsFlash>,
     subsidy_value: &str,
     sats_per_usd: &str,
@@ -180,6 +253,7 @@ pub fn view<'a>(
             "All-Time High",
             value_text(all_time_high.to_string(), theme::HALVING_BUTTON_TEXT),
         ),
+        position_card(position, live_price),
     ])
     .spacing(sp(8.0))
     .padding(iced::Padding::new(sp(8.0)).left(sp(21.0)).right(sp(21.0)));

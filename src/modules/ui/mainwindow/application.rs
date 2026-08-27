@@ -7,6 +7,7 @@ use crate::modules::ui::mainwindow::app_icon;
 use crate::modules::ui::mainwindow::calmar_dialog;
 use crate::modules::ui::mainwindow::dashboard_layout::dashboard;
 use crate::modules::ui::mainwindow::db_accessor;
+use crate::modules::ui::mainwindow::position_dialog;
 use crate::modules::ui::mainwindow::sidebar::blockchain_sidebar;
 use crate::modules::ui::mainwindow::sidebar::halving_sidebar;
 use crate::modules::ui::scaling::Scaling;
@@ -98,6 +99,15 @@ struct Halvora {
     /// Highest live price seen this session, so a new all-time high stays
     /// visible even after the price pulls back below the DB record.
     session_high: f64,
+    /// Stored user position `(btc_balance, dca_price)`. `None` until the
+    /// user saves a position in the Position dialog.
+    position: Option<(f64, f64)>,
+    /// Draft BTC balance text in the Position dialog.
+    position_balance_input: String,
+    /// Draft DCA price text in the Position dialog.
+    position_dca_input: String,
+    /// Whether the Position dialog is open.
+    show_position_dialog: bool,
     metrics: Metrics,
     /// P/L sign for the Year-Over-Year period, used to color the sidebar button.
     yoy_pl_sign: PLSign,
@@ -268,6 +278,12 @@ impl Halvora {
     /// data in the background, so the splash screen stays visible while the
     /// API calls run instead of the user staring at a blank window.
     fn new() -> (Self, Task<Message>) {
+        // Load the stored user position once at startup so the Position card
+        // is populated immediately.
+        let position = db_accessor::load_position();
+        let position_balance_input = position.map_or(String::new(), |(b, _)| format!("{b}"));
+        let position_dca_input = position.map_or(String::new(), |(_, d)| format!("{d}"));
+
         let state = Self {
             phase: AppPhase::Splash(SplashState::new(SplashState::DURATION_SECS)),
             selected_halving: None,
@@ -288,6 +304,10 @@ impl Halvora {
             sats_per_usd: String::new(),
             all_time_high: String::new(),
             session_high: 0.0,
+            position,
+            position_balance_input,
+            position_dca_input,
+            show_position_dialog: false,
             metrics: crate::modules::compute::metrics::compute(&[], None),
             yoy_pl_sign: PLSign::NoChange,
             halving_pl_signs: vec![PLSign::NoChange; 33],
@@ -410,6 +430,16 @@ pub enum Message {
     AboutClicked,
     OpenGithub,
     CloseAboutDialog,
+    /// The Position card was clicked; opens the Position dialog.
+    PositionClicked,
+    /// The BTC balance draft changed in the Position dialog.
+    PositionBalanceChanged(String),
+    /// The DCA price draft changed in the Position dialog.
+    PositionDcaChanged(String),
+    /// Save the entered position to the database and close the dialog.
+    SavePosition,
+    /// Close the Position dialog without saving.
+    ClosePositionDialog,
     SelectAVWAP,
     SelectRange,
     /// The window was resized; records the target size for debounced
@@ -744,6 +774,43 @@ fn update(state: &mut Halvora, message: Message) {
             state.show_calmar_dialog = false;
             state.line_chart_state.dialog_open.set(false);
         }
+        Message::PositionClicked => {
+            // Pre-fill the inputs with the stored values so re-opening the
+            // dialog shows the saved position.
+            if let Some((balance, dca)) = state.position {
+                state.position_balance_input = format!("{balance}");
+                state.position_dca_input = format!("{dca}");
+            }
+            state.show_position_dialog = true;
+            state.line_chart_state.dialog_open.set(true);
+        }
+        Message::PositionBalanceChanged(value) => {
+            state.position_balance_input = value;
+        }
+        Message::PositionDcaChanged(value) => {
+            state.position_dca_input = value;
+        }
+        Message::SavePosition => {
+            // The dialog disables Save while the inputs are invalid, so this
+            // validation is a safety net rather than the primary gate.
+            let balance: Option<f64> = state.position_balance_input.trim().parse().ok();
+            let dca: Option<f64> = state.position_dca_input.trim().parse().ok();
+            if let (Some(balance), Some(dca)) = (balance, dca)
+                && balance.is_finite()
+                && dca.is_finite()
+                && balance >= 0.0
+                && dca >= 0.0
+            {
+                db_accessor::save_position(balance, dca);
+                state.position = Some((balance, dca));
+                state.show_position_dialog = false;
+                state.line_chart_state.dialog_open.set(false);
+            }
+        }
+        Message::ClosePositionDialog => {
+            state.show_position_dialog = false;
+            state.line_chart_state.dialog_open.set(false);
+        }
         Message::SelectAVWAP => {
             state
                 .line_chart_state
@@ -874,6 +941,7 @@ fn view(state: &Halvora) -> Element<'_, Message> {
             &state.percentage_issued,
             &state.remaining_issuance,
             state.live_price,
+            state.position,
             spot_flash,
             &state.subsidy_value,
             &state.sats_per_usd,
@@ -894,6 +962,14 @@ fn view(state: &Halvora) -> Element<'_, Message> {
     }
     if state.show_about_dialog {
         let overlay = about_dialog::view();
+        display = iced::widget::stack(vec![display, mouse_area(overlay).into()]).into();
+    }
+    if state.show_position_dialog {
+        let overlay = position_dialog::view(
+            &state.position_balance_input,
+            &state.position_dca_input,
+            state.live_price,
+        );
         display = iced::widget::stack(vec![display, mouse_area(overlay).into()]).into();
     }
     if let Some(opacity) = fade_in_opacity {
