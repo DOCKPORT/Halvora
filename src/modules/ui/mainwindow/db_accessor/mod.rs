@@ -51,7 +51,6 @@ const CENTS_PER_USD: f64 = 100.0;
 pub fn load_position() -> Option<(f64, f64)> {
     let conn = Connection::open(position_db_path()).ok()?;
     let _ = conn.execute_batch(create_position_table_sql());
-    migrate_position_table(&conn);
     conn.query_row(
         "SELECT btc_balance_sat, dca_price_cents FROM user_position WHERE id = 1",
         [],
@@ -82,7 +81,6 @@ pub fn save_position(btc_balance: f64, dca_price: f64) {
         eprintln!("[halvora] failed to create user_position table: {e}");
         return;
     }
-    migrate_position_table(&conn);
     let (sat, cents) = to_integer_units(btc_balance, dca_price);
     if let Err(e) = conn.execute(
         "INSERT INTO user_position (id, btc_balance_sat, dca_price_cents) VALUES (1, ?1, ?2)
@@ -115,51 +113,4 @@ fn to_integer_units(btc_balance: f64, dca_price: f64) -> (i64, i64) {
 /// Convert integer units (satoshis, cents) back to the `f64` values the UI uses.
 fn from_integer_units(sat: i64, cents: i64) -> (f64, f64) {
     (sat as f64 / SATS_PER_BTC, cents as f64 / CENTS_PER_USD)
-}
-
-/// Migrate the `user_position` table from the earlier `REAL` schema (if any)
-/// to the integer sat/cent schema.
-///
-/// Reads the old row, drops the table, recreates it with the new schema, and
-/// re-inserts the converted values. A fresh database or an already-migrated
-/// table is left untouched.
-fn migrate_position_table(conn: &Connection) {
-    // The old schema had a `btc_balance` column of type REAL; the new schema
-    // uses `btc_balance_sat INTEGER`. Detect the old table by that column.
-    let old_type: Option<String> = conn
-        .query_row(
-            "SELECT type FROM pragma_table_info('user_position') WHERE name = 'btc_balance'",
-            [],
-            |row| row.get(0),
-        )
-        .ok();
-    if old_type.as_deref() != Some("REAL") {
-        return;
-    }
-
-    let old: Option<(f64, f64)> = conn
-        .query_row(
-            "SELECT btc_balance, dca_price FROM user_position WHERE id = 1",
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )
-        .ok();
-
-    if let Err(e) = conn.execute_batch("DROP TABLE user_position;") {
-        eprintln!("[halvora] failed to drop legacy user_position table: {e}");
-        return;
-    }
-    if let Err(e) = conn.execute_batch(create_position_table_sql()) {
-        eprintln!("[halvora] failed to recreate user_position table: {e}");
-        return;
-    }
-    if let Some((btc, usd)) = old {
-        let (sat, cents) = to_integer_units(btc, usd);
-        if let Err(e) = conn.execute(
-            "INSERT INTO user_position (id, btc_balance_sat, dca_price_cents) VALUES (1, ?1, ?2)",
-            rusqlite::params![sat, cents],
-        ) {
-            eprintln!("[halvora] failed to migrate user position: {e}");
-        }
-    }
 }
