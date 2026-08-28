@@ -86,12 +86,12 @@ pub fn fetch_and_store() {
         return;
     }
 
-    // Refresh today's volume if the 1-hour cooldown has expired.
-    // This runs before the gap/early-return logic so it works even when
-    // the DB already has today's candle (e.g. on app restart).
-    refresh_today_volume_if_stale(&conn);
-
-    // Determine the latest candle we already have.
+    // Determine the latest candle we already have BEFORE inserting or
+    // refreshing today's row. Inserting today's candle first would make
+    // MAX(timestamp) == today, and the gap logic below would then conclude
+    // "already up to date" and silently skip the real gap. This happened in
+    // practice: a stale seed produced a database that had today's candle but
+    // was missing every day in between.
     let latest_ts: Option<i64> = conn
         .query_row("SELECT MAX(timestamp) FROM daily_candles", [], |row| {
             row.get(0)
@@ -108,6 +108,9 @@ pub fn fetch_and_store() {
     let today_midnight = now - (now % 86_400);
 
     if start_ts > today_midnight {
+        // Up to date. Refresh today's partial candle if the 1-hour cooldown
+        // has expired.
+        refresh_today_volume_if_stale(&conn);
         eprintln!(
             "[bitstamp] already up to date (latest: {})",
             latest_ts.unwrap_or(0)
@@ -171,6 +174,14 @@ pub fn fetch_and_store() {
 
         // Polite delay between requests.
         std::thread::sleep(Duration::from_millis(REQUEST_DELAY_MS));
+    }
+
+    // The gap fetch completed. Refresh today's partial candle if the 1-hour
+    // cooldown has expired. If nothing was stored (the fetch failed outright),
+    // skip the refresh so the next run retries the whole gap instead of
+    // marking today as present.
+    if total_inserted > 0 {
+        refresh_today_volume_if_stale(&conn);
     }
 
     eprintln!("[bitstamp] sync complete – {total_inserted} new candles stored");
