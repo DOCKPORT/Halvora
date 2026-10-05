@@ -44,11 +44,11 @@ pub fn seed_if_missing() {
 
     // Ensure the parent directory exists, then write the embedded bytes.
     let parent = db_path.parent();
-    if let Some(dir) = parent {
-        if let Err(e) = fs::create_dir_all(dir) {
-            eprintln!("[bitstamp] could not create data dir {dir:?}: {e}");
-            return;
-        }
+    if let Some(dir) = parent
+        && let Err(e) = fs::create_dir_all(dir)
+    {
+        eprintln!("[bitstamp] could not create data dir {dir:?}: {e}");
+        return;
     }
 
     match fs::File::create(&db_path) {
@@ -75,7 +75,7 @@ pub fn seed_if_missing() {
 /// A missing file or an empty file both count as "no data", so the caller
 /// seeds the embedded database for either case.
 fn file_has_data(path: &Path) -> bool {
-    fs::metadata(path).map_or(false, |meta| meta.len() > 0)
+    fs::metadata(path).is_ok_and(|meta| meta.len() > 0)
 }
 
 /// Returns `true` when the embedded snapshot has a newer latest candle than

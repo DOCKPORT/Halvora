@@ -1,5 +1,6 @@
 use crate::modules::compute::year_over_year::Candle;
 use crate::modules::ui::ws_flash::WsFlash;
+use iced::Rectangle;
 use std::cell::{Cell, RefCell};
 
 /// Which drawing tool is currently active on the chart.
@@ -7,7 +8,7 @@ use std::cell::{Cell, RefCell};
 pub enum DrawingMode {
     /// Anchored VWAP lines — left-click to anchor, right-click to remove.
     #[default]
-    AVWAP,
+    Avwap,
     /// Range selection tool (future).
     Range,
 }
@@ -19,6 +20,18 @@ pub struct RangeBox {
     pub from_price: f64,
     pub to_ts: f64,
     pub to_price: f64,
+}
+
+/// A chart viewport: the drawable plot rectangle plus the visible X and Y data
+/// bounds. Grouped so draw and hit-test helpers do not repeat the same values in
+/// every signature.
+#[derive(Debug, Clone, Copy)]
+pub struct PlotView<'a> {
+    pub plot: &'a Rectangle,
+    pub x_min: f64,
+    pub x_max: f64,
+    pub y_min: f64,
+    pub y_max: f64,
 }
 
 /// A snapshot of all user drawings on one page. Drawn VWAP anchors are stored

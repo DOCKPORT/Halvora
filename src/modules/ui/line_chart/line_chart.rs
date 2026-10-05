@@ -7,7 +7,7 @@ use iced::widget::text;
 use iced::{Color, Element, Length, Point, Rectangle, Renderer, Theme};
 
 use super::axis;
-use super::state::LineChartState;
+use super::state::{LineChartState, PlotView};
 use crate::modules::compute::vwap::anchored_vwap;
 use crate::modules::compute::year_over_year::Candle;
 use crate::modules::ui::mainwindow::dashboard_layout::drawing_tools;
@@ -73,6 +73,13 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
         let (x_min, x_max) = self.data.x_bounds();
         let (y_min, y_max) = self.data.y_bounds();
         let plot = padded_plot_area(bounds);
+        let view = PlotView {
+            plot: &plot,
+            x_min,
+            x_max,
+            y_min,
+            y_max,
+        };
 
         // 1. Grid
         draw_grid(&mut frame, &plot, x_min, x_max, y_min, y_max);
@@ -120,12 +127,8 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
         // 6. Anchored VWAP lines (also white, same style)
         drawing_tools::draw_anchored_vwaps(
             &mut frame,
-            &plot,
+            view,
             &self.data.candles,
-            x_min,
-            x_max,
-            y_min,
-            y_max,
             &self.data.anchors(),
         );
 
@@ -153,12 +156,10 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
             };
             draw_crosshair(
                 &mut frame,
-                &plot,
+                view,
                 candle,
                 active_idx,
                 &self.data.candles,
-                x_min,
-                x_max,
                 true, // show vertical line
                 live_flash,
             );
@@ -172,19 +173,17 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
             };
             draw_crosshair(
                 &mut frame,
-                &plot,
+                view,
                 &today_cdl,
                 today_idx,
                 &self.data.candles,
-                x_min,
-                x_max,
                 false, // no vertical line — not hovered
                 live_flash,
             );
         }
 
         // 8. Range boxes (completed + preview) — drawn on top of everything
-        drawing_tools::draw_ranges(&mut frame, &plot, x_min, x_max, y_min, y_max, self.data);
+        drawing_tools::draw_ranges(&mut frame, view, self.data);
 
         vec![frame.into_geometry()]
     }
@@ -310,35 +309,33 @@ impl<Message> canvas::Program<Message> for LineChartProgram<'_> {
                 }
                 _ => None,
             },
-            canvas::Event::Keyboard(key_event) => match key_event {
-                keyboard::Event::KeyPressed { key: k, .. } => {
-                    let candles = &self.data.candles;
-                    if candles.is_empty() {
-                        return None;
-                    }
-                    let idx = state.active_idx.unwrap_or(candles.len() - 1);
-                    let new_idx = match k.as_ref() {
-                        key::Key::Named(key::Named::ArrowLeft) => idx.saturating_sub(1),
-                        key::Key::Named(key::Named::ArrowRight) => {
-                            if idx + 1 < candles.len() {
-                                idx + 1
-                            } else {
-                                idx
-                            }
-                        }
-                        _ => return None,
-                    };
-                    if new_idx == idx {
-                        None
-                    } else {
-                        state.active_idx = Some(new_idx);
-                        state.candle = Some(candles[new_idx]);
-                        self.data.hovered_index.set(Some(new_idx));
-                        Some(canvas::Action::request_redraw().and_capture())
-                    }
+            canvas::Event::Keyboard(keyboard::Event::KeyPressed { key: k, .. }) => {
+                let candles = &self.data.candles;
+                if candles.is_empty() {
+                    return None;
                 }
-                _ => None,
-            },
+                let idx = state.active_idx.unwrap_or(candles.len() - 1);
+                let new_idx = match k.as_ref() {
+                    key::Key::Named(key::Named::ArrowLeft) => idx.saturating_sub(1),
+                    key::Key::Named(key::Named::ArrowRight) => {
+                        if idx + 1 < candles.len() {
+                            idx + 1
+                        } else {
+                            idx
+                        }
+                    }
+                    _ => return None,
+                };
+                if new_idx == idx {
+                    None
+                } else {
+                    state.active_idx = Some(new_idx);
+                    state.candle = Some(candles[new_idx]);
+                    self.data.hovered_index.set(Some(new_idx));
+                    Some(canvas::Action::request_redraw().and_capture())
+                }
+            }
+            canvas::Event::Keyboard(_) => None,
             _ => None,
         }
     }
@@ -704,15 +701,16 @@ fn fmt_price_whole(p: f64) -> String {
 
 fn draw_crosshair(
     frame: &mut Frame,
-    plot: &Rectangle,
+    view: PlotView<'_>,
     candle: &Candle,
     active_idx: usize,
     all_candles: &[Candle],
-    x_min: f64,
-    x_max: f64,
     show_line: bool,
     flash: Option<crate::modules::ui::ws_flash::WsFlash>,
 ) {
+    let PlotView {
+        plot, x_min, x_max, ..
+    } = view;
     // Vertical line (only shown on hover)
     if show_line {
         let x = data_x_to_screen(candle.timestamp as f64, x_min, x_max, plot);

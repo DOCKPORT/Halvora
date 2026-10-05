@@ -8,7 +8,7 @@ use crate::modules::ui::mainwindow::calmar_dialog;
 use crate::modules::ui::mainwindow::dashboard_layout::dashboard;
 use crate::modules::ui::mainwindow::db_accessor;
 use crate::modules::ui::mainwindow::position_dialog;
-use crate::modules::ui::mainwindow::sidebar::blockchain_sidebar;
+use crate::modules::ui::mainwindow::sidebar::blockchain_sidebar::{self, BlockchainStats};
 use crate::modules::ui::mainwindow::sidebar::halving_sidebar;
 use crate::modules::ui::scaling::Scaling;
 use crate::modules::ui::splash_screen::splash;
@@ -193,7 +193,7 @@ impl Halvora {
     /// the same high/low/close. Completed halvings end in the past, so the
     /// overlay is a no-op for them.
     fn apply_canonical_today(
-        candles: &mut Vec<Candle>,
+        candles: &mut [Candle],
         canonical_today: Option<&Candle>,
         today_midnight: i64,
     ) {
@@ -815,7 +815,7 @@ fn update(state: &mut Halvora, message: Message) {
             state
                 .line_chart_state
                 .drawing_mode
-                .set(crate::modules::ui::line_chart::state::DrawingMode::AVWAP);
+                .set(crate::modules::ui::line_chart::state::DrawingMode::Avwap);
         }
         Message::SelectRange => {
             state
@@ -931,22 +931,22 @@ fn view(state: &Halvora) -> Element<'_, Message> {
             &state.line_chart_state,
             &state.metrics,
         ),
-        blockchain_sidebar::view(
-            state.current_tip_height,
-            state.current_subsidy_sat,
-            state.mining_difficulty,
-            &state.next_halving_eta,
-            &state.blocks_to_next_halving,
-            &state.coins_issued,
-            &state.percentage_issued,
-            &state.remaining_issuance,
-            state.live_price,
-            state.position,
+        blockchain_sidebar::view(BlockchainStats {
+            current_tip_height: state.current_tip_height,
+            current_subsidy_sat: state.current_subsidy_sat,
+            mining_difficulty: state.mining_difficulty,
+            next_halving_eta: &state.next_halving_eta,
+            blocks_to_next_halving: &state.blocks_to_next_halving,
+            coins_issued: &state.coins_issued,
+            percentage_issued: &state.percentage_issued,
+            remaining_issuance: &state.remaining_issuance,
+            live_price: state.live_price,
+            position: state.position,
             spot_flash,
-            &state.subsidy_value,
-            &state.sats_per_usd,
-            &state.all_time_high
-        ),
+            subsidy_value: &state.subsidy_value,
+            sats_per_usd: &state.sats_per_usd,
+            all_time_high: &state.all_time_high,
+        }),
     ]
     .width(Length::Fill)
     .height(Length::Fill)

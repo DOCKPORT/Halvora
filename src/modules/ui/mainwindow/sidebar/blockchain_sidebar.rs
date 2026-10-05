@@ -138,22 +138,44 @@ fn position_card<'a>(
         .into()
 }
 
+/// All values rendered by the blockchain sidebar. Grouped into one struct so the
+/// view function takes a single argument.
+pub struct BlockchainStats<'a> {
+    pub current_tip_height: u32,
+    pub current_subsidy_sat: i64,
+    pub mining_difficulty: f64,
+    pub next_halving_eta: &'a str,
+    pub blocks_to_next_halving: &'a str,
+    pub coins_issued: &'a str,
+    pub percentage_issued: &'a str,
+    pub remaining_issuance: &'a str,
+    pub live_price: Option<f64>,
+    pub position: Option<(f64, f64)>,
+    pub spot_flash: Option<&'a WsFlash>,
+    pub subsidy_value: &'a str,
+    pub sats_per_usd: &'a str,
+    pub all_time_high: &'a str,
+}
+
 pub fn view<'a>(
-    current_tip_height: u32,
-    current_subsidy_sat: i64,
-    mining_difficulty: f64,
-    next_halving_eta: &str,
-    blocks_to_next_halving: &str,
-    coins_issued: &str,
-    percentage_issued: &str,
-    remaining_issuance: &str,
-    live_price: Option<f64>,
-    position: Option<(f64, f64)>,
-    spot_flash: Option<&WsFlash>,
-    subsidy_value: &str,
-    sats_per_usd: &str,
-    all_time_high: &str,
+    stats: BlockchainStats<'a>,
 ) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
+    let BlockchainStats {
+        current_tip_height,
+        current_subsidy_sat,
+        mining_difficulty,
+        next_halving_eta,
+        blocks_to_next_halving,
+        coins_issued,
+        percentage_issued,
+        remaining_issuance,
+        live_price,
+        position,
+        spot_flash,
+        subsidy_value,
+        sats_per_usd,
+        all_time_high,
+    } = stats;
     fn fmt_commas(n: u64) -> String {
         let s = n.to_string();
         let mut result = String::with_capacity(s.len() + s.len() / 3);

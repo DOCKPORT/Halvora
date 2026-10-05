@@ -1,4 +1,5 @@
 pub mod axis;
+#[allow(clippy::module_inception)]
 pub mod line_chart;
 pub mod state;
 

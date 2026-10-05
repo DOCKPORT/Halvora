@@ -7,6 +7,16 @@ const HALVING_COUNT: u32 = 32;
 /// Minutes per block assumption.
 const MINUTES_PER_BLOCK: u64 = 10;
 
+/// Minutes per day.
+const MINUTES_PER_DAY: u64 = 60 * 24;
+
+/// Minutes per year. A year is 365 days.
+const MINUTES_PER_YEAR: u64 = MINUTES_PER_DAY * 365;
+
+/// Minutes per month. A month is 365/12 days, so twelve months equal one year.
+/// This value is exact: 525,600 / 12 = 43,800.
+const MINUTES_PER_MONTH: u64 = MINUTES_PER_YEAR / 12;
+
 /// Shared helper: find blocks remaining until the next halving.
 /// Returns `None` if all halvings are past.
 fn blocks_remaining_until_next_halving(current_tip_height: u32) -> Option<u64> {
@@ -36,11 +46,16 @@ fn with_thousands_commas(n: u64) -> String {
 }
 
 /// Format a duration in minutes as "~Yy Mm Dd".
+///
+/// The duration stays in minutes until the final step, so no precision is lost.
+/// A year is 365 days and a month is 365/12 days, so twelve months equal one
+/// year exactly.
 fn format_eta(minutes: u64) -> String {
-    let total_days = minutes / (60 * 24);
-    let years = total_days / 365;
-    let months = (total_days % 365) / 30;
-    let days = (total_days % 365) % 30;
+    let years = minutes / MINUTES_PER_YEAR;
+    let after_years = minutes % MINUTES_PER_YEAR;
+    let months = after_years / MINUTES_PER_MONTH;
+    let after_months = after_years % MINUTES_PER_MONTH;
+    let days = after_months / MINUTES_PER_DAY;
     format!("~{years}y {months}m {days}d")
 }
 

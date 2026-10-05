@@ -1,6 +1,6 @@
 use crate::modules::compute::vwap::anchored_vwap;
 use crate::modules::compute::year_over_year::Candle;
-use crate::modules::ui::line_chart::state::{DrawingMode, LineChartState, RangeBox};
+use crate::modules::ui::line_chart::state::{DrawingMode, LineChartState, PlotView, RangeBox};
 use crate::modules::ui::scaling::sp;
 use crate::modules::ui::theme;
 use iced::mouse;
@@ -45,7 +45,7 @@ pub fn view<'a>(
     row![
         tool_button(
             "AVWAP",
-            active == DrawingMode::AVWAP,
+            active == DrawingMode::Avwap,
             crate::modules::ui::mainwindow::application::Message::SelectAVWAP,
         ),
         tool_button(
@@ -99,14 +99,17 @@ const VWAP_HIT_TOLERANCE: f64 = 5.0;
 /// Draw anchored VWAP lines (white, 1.5px) starting from user-selected candle indices.
 pub fn draw_anchored_vwaps(
     frame: &mut Frame,
-    plot: &Rectangle,
+    view: PlotView<'_>,
     candles: &[Candle],
-    x_min: f64,
-    x_max: f64,
-    y_min: f64,
-    y_max: f64,
     anchors: &[usize],
 ) {
+    let PlotView {
+        plot,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+    } = view;
     for &anchor_idx in anchors {
         if anchor_idx >= candles.len() {
             continue;
@@ -152,14 +155,17 @@ pub fn draw_anchored_vwaps(
 pub fn hit_test_anchored_vwaps(
     cursor_x: f64,
     cursor_y: f64,
-    plot: &Rectangle,
-    x_min: f64,
-    x_max: f64,
-    y_min: f64,
-    y_max: f64,
+    view: PlotView<'_>,
     candles: &[Candle],
     anchors: &[usize],
 ) -> Option<usize> {
+    let PlotView {
+        plot,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+    } = view;
     for (list_idx, &anchor_idx) in anchors.iter().enumerate() {
         if anchor_idx >= candles.len() {
             continue;
@@ -224,18 +230,10 @@ const LABEL_PADDING_X: f32 = 10.0;
 const LABEL_PADDING_Y: f32 = 3.0;
 
 /// Draw all completed ranges and any in-progress range preview.
-pub fn draw_ranges(
-    frame: &mut Frame,
-    plot: &Rectangle,
-    x_min: f64,
-    x_max: f64,
-    y_min: f64,
-    y_max: f64,
-    state: &LineChartState,
-) {
+pub fn draw_ranges(frame: &mut Frame, view: PlotView<'_>, state: &LineChartState) {
     // Completed ranges
     for r in state.ranges.borrow().iter() {
-        draw_one_range_box(frame, plot, x_min, x_max, y_min, y_max, r, false);
+        draw_one_range_box(frame, view, r, false);
     }
 
     // In-progress preview
@@ -246,20 +244,18 @@ pub fn draw_ranges(
             to_ts: to.0,
             to_price: to.1,
         };
-        draw_one_range_box(frame, plot, x_min, x_max, y_min, y_max, &preview, true);
+        draw_one_range_box(frame, view, &preview, true);
     }
 }
 
-fn draw_one_range_box(
-    frame: &mut Frame,
-    plot: &Rectangle,
-    x_min: f64,
-    x_max: f64,
-    y_min: f64,
-    y_max: f64,
-    r: &RangeBox,
-    preview: bool,
-) {
+fn draw_one_range_box(frame: &mut Frame, view: PlotView<'_>, r: &RangeBox, preview: bool) {
+    let PlotView {
+        plot,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+    } = view;
     let x1 = data_x_to_screen(r.from_ts, x_min, x_max, plot);
     let x2 = data_x_to_screen(r.to_ts, x_min, x_max, plot);
     let y1 = data_y_to_screen(r.from_price, y_min, y_max, plot);
@@ -372,13 +368,16 @@ fn draw_one_range_box(
 fn hit_test_ranges(
     cursor_x: f32,
     cursor_y: f32,
-    plot: &Rectangle,
-    x_min: f64,
-    x_max: f64,
-    y_min: f64,
-    y_max: f64,
+    view: PlotView<'_>,
     state: &LineChartState,
 ) -> Option<usize> {
+    let PlotView {
+        plot,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+    } = view;
     for (idx, r) in state.ranges.borrow().iter().enumerate() {
         let x1 = data_x_to_screen(r.from_ts, x_min, x_max, plot);
         let x2 = data_x_to_screen(r.to_ts, x_min, x_max, plot);
@@ -500,18 +499,16 @@ pub fn handle_right_click_delete(
 
     let (x_min, x_max) = state.x_bounds();
     let (y_min, y_max) = state.y_bounds();
-
-    // Range boxes are drawn on top of the VWAP lines, so hit-test them first.
-    if let Some(idx) = hit_test_ranges(
-        cursor_pt.x,
-        cursor_pt.y,
-        &plot,
+    let view = PlotView {
+        plot: &plot,
         x_min,
         x_max,
         y_min,
         y_max,
-        state,
-    ) {
+    };
+
+    // Range boxes are drawn on top of the VWAP lines, so hit-test them first.
+    if let Some(idx) = hit_test_ranges(cursor_pt.x, cursor_pt.y, view, state) {
         state.ranges.borrow_mut().remove(idx);
         state.range_pending.set(None);
         state.range_preview.set(None);
@@ -522,11 +519,7 @@ pub fn handle_right_click_delete(
     if let Some(list_idx) = hit_test_anchored_vwaps(
         f64::from(cursor_pt.x),
         f64::from(cursor_pt.y),
-        &plot,
-        x_min,
-        x_max,
-        y_min,
-        y_max,
+        view,
         &state.candles,
         &state.anchors(),
     ) {
