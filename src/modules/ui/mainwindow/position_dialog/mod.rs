@@ -81,9 +81,9 @@ pub fn view<'a>(
         (Some(d), Some(p)) if d > 0.0 => {
             let change = (p - d) / d * 100.0;
             let (arrow, color) = if change >= 0.0 {
-                ("\u{25B2}", POSITIVE)
+                ("\u{2191}", POSITIVE)
             } else {
-                ("\u{25BC}", NEGATIVE)
+                ("\u{2193}", NEGATIVE)
             };
             text(format!(
                 "P/L at ${}: {arrow} {:.2}%",

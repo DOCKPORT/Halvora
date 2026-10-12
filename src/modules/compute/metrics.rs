@@ -62,7 +62,7 @@ pub fn compute(candles: &[Candle], live_price: Option<f64>) -> Metrics {
     // The match on `pl_sign` guarantees that when the sign is Positive or
     // Negative, both `live_price` and `candles.first()` are `Some` and the
     // first close is non-zero, so computing `change` up front is safe.
-    //  ▲ for positive, ▼ for negative, — for zero.
+    //  ↑ for positive, ↓ for negative, ● for zero, — when data is missing.
     let pl = pl_sign(candles, live_price);
     let change = if matches!(pl, PLSign::Positive | PLSign::Negative) {
         (live_price.unwrap() - candles.first().unwrap().close) / candles.first().unwrap().close
@@ -71,9 +71,13 @@ pub fn compute(candles: &[Candle], live_price: Option<f64>) -> Metrics {
         0.0
     };
     let p_l = match pl {
-        PLSign::Positive => format!("\u{25B2} {change:.2}%"),
-        PLSign::Negative => format!("\u{25BC} {:.2}%", -change),
-        PLSign::NoChange => dash.clone(),
+        PLSign::Positive => format!("\u{2191} {change:.2}%"),
+        PLSign::Negative => format!("\u{2193} {:.2}%", -change),
+        // A real 0.00% change shows a dot. Missing data shows an em-dash.
+        PLSign::NoChange => match (candles.first(), live_price) {
+            (Some(first), Some(_)) if first.close != 0.0 => "\u{25CF}".to_string(),
+            _ => dash.clone(),
+        },
     };
 
     // High / Low: max of high, min of low across the period.

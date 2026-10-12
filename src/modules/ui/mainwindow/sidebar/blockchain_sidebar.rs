@@ -96,11 +96,11 @@ fn position_card<'a>(
 ) -> Element<'a, crate::modules::ui::mainwindow::application::Message> {
     use crate::modules::ui::mainwindow::application::Message;
 
-    // P/L percent using the ▲/▼ and color convention of the metric bar.
+    // P/L percent using the ↑/↓ and color convention of the metric bar.
     let pl = position_pl_pct(position, live_price);
     let (pl_text, pl_color) = match pl {
-        Some(change) if change >= 0.0 => (format!("\u{25B2} {change:.2}%"), POSITION_UP),
-        Some(change) => (format!("\u{25BC} {:.2}%", -change), POSITION_DOWN),
+        Some(change) if change >= 0.0 => (format!("\u{2191} {change:.2}%"), POSITION_UP),
+        Some(change) => (format!("\u{2193} {:.2}%", -change), POSITION_DOWN),
         None => ("\u{2014}".to_string(), POSITION_FLAT),
     };
 

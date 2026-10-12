@@ -54,14 +54,17 @@ fn metric_card<'a>(
         .into()
 }
 
-/// Determine the colour for a P/L value based on its triangle prefix.
+/// Determine the colour for a P/L value based on its arrow prefix.
 fn p_l_color(val: &str) -> Color {
-    if val.starts_with('\u{25B2}') {
+    if val.starts_with('\u{2191}') {
         GREEN_LINE
-    } else if val.starts_with('\u{25BC}') {
+    } else if val.starts_with('\u{2193}') {
         RED_LINE
-    } else {
+    } else if val.starts_with('\u{25CF}') {
         GREY_LINE
+    } else {
+        // Em-dash for missing data matches the other cards' value colour.
+        theme::HALVING_BUTTON_TEXT
     }
 }
 
