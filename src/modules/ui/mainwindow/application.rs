@@ -4,6 +4,7 @@ use crate::modules::ui::line_chart::LineChartState;
 use crate::modules::ui::line_chart::state::PageDrawings;
 use crate::modules::ui::mainwindow::about_dialog;
 use crate::modules::ui::mainwindow::app_icon;
+use crate::modules::ui::mainwindow::brass_tacks_dialog;
 use crate::modules::ui::mainwindow::calmar_dialog;
 use crate::modules::ui::mainwindow::dashboard_layout::dashboard;
 use crate::modules::ui::mainwindow::db_accessor;
@@ -131,6 +132,12 @@ struct Halvora {
     line_chart_state: LineChartState,
     volume_sync_start: Instant,
     show_calmar_dialog: bool,
+    /// Whether the Brass Tacks dialog is open.
+    show_brass_tacks_dialog: bool,
+    /// Latest S&P 500 value for the Brass Tacks dialog. Memory only, never stored.
+    sp500_latest: Option<f64>,
+    /// Whether the S&P 500 fetch has started this session, so it runs once.
+    sp500_fetch_started: bool,
     show_about_dialog: bool,
     /// A window resize awaiting debounced application. While set, a short
     /// poll runs; when the resize events settle, the scale factor is applied.
@@ -319,6 +326,9 @@ impl Halvora {
             line_chart_state: LineChartState::new(Vec::new()),
             volume_sync_start: Instant::now(),
             show_calmar_dialog: false,
+            show_brass_tacks_dialog: false,
+            sp500_latest: None,
+            sp500_fetch_started: false,
             show_about_dialog: false,
             pending_resize: None,
             latest_window_size: Scaling::global().screen_size,
@@ -420,6 +430,10 @@ impl Halvora {
 pub enum Message {
     HalvingSelected(u32),
     YoYSelected,
+    /// The Brass Tacks sidebar button was pressed; opens the comparison dialog.
+    BrassTacksSelected,
+    /// The S&P 500 fetch finished. Carries the latest value, or `None` on error.
+    Sp500Loaded(Option<f64>),
     Tick,
     LivePrice(f64),
     /// Periodic tick that expires an active websocket flash after 1 second.
@@ -427,6 +441,8 @@ pub enum Message {
     NewDay(i64),
     CalmarClicked,
     CloseCalmarDialog,
+    /// Close the Brass Tacks dialog without any action.
+    CloseBrassTacksDialog,
     AboutClicked,
     OpenGithub,
     CloseAboutDialog,
@@ -494,7 +510,7 @@ fn subscription(state: &Halvora) -> Subscription<Message> {
     Subscription::batch(subs)
 }
 
-fn update(state: &mut Halvora, message: Message) {
+fn update(state: &mut Halvora, message: Message) -> Task<Message> {
     // Handle the splash / fade-in tick on every frame.
     if matches!(message, Message::SplashTick) {
         // Splash phase: wait until the scale is resolved (first real window
@@ -503,7 +519,7 @@ fn update(state: &mut Halvora, message: Message) {
             // Do not start the timer until the true window size is known, so
             // the splash never renders (nor advances) at a wrong scale.
             if !s.is_ready() {
-                return;
+                return Task::none();
             }
             // Set the start time on the first tick, then measure progress
             // relative to it.
@@ -528,7 +544,7 @@ fn update(state: &mut Halvora, message: Message) {
                 state.phase =
                     AppPhase::MainFadeIn(MainFadeInState::new(MainFadeInState::FADE_IN_SECS));
             }
-            return;
+            return Task::none();
         }
 
         // Main fade-in phase: advance the overlay opacity, then show fully.
@@ -541,7 +557,7 @@ fn update(state: &mut Halvora, message: Message) {
             if f.is_finished() {
                 state.phase = AppPhase::Main;
             }
-            return;
+            return Task::none();
         }
     }
 
@@ -615,6 +631,30 @@ fn update(state: &mut Halvora, message: Message) {
                 &state.line_chart_state.candles,
                 state.live_price,
             );
+        }
+        Message::BrassTacksSelected => {
+            // Open the Brass Tacks dialog. The button has no selected state;
+            // hover is the only visual feedback.
+            state.show_brass_tacks_dialog = true;
+            // Block all chart mouse interaction while the modal is open.
+            state.line_chart_state.dialog_open.set(true);
+
+            // Fetch the S&P 500 value once per session. The blocking HTTP
+            // client must not run inside iced's async runtime, so it runs on a
+            // plain OS thread and reports back through a oneshot channel.
+            if !state.sp500_fetch_started {
+                state.sp500_fetch_started = true;
+                let (tx, rx) = oneshot::channel();
+                std::thread::spawn(move || {
+                    let value = crate::modules::api::equities::sp500::fetch_latest();
+                    let _ = tx.send(value);
+                });
+                return Task::perform(async move { rx.await.ok().flatten() }, Message::Sp500Loaded);
+            }
+        }
+        Message::Sp500Loaded(value) => {
+            // Keep the fetched value in memory for the rest of the session.
+            state.sp500_latest = value;
         }
         Message::Tick => {
             crate::modules::api::mempool::rest::halve_blocks::fetch_and_store();
@@ -774,6 +814,10 @@ fn update(state: &mut Halvora, message: Message) {
             state.show_calmar_dialog = false;
             state.line_chart_state.dialog_open.set(false);
         }
+        Message::CloseBrassTacksDialog => {
+            state.show_brass_tacks_dialog = false;
+            state.line_chart_state.dialog_open.set(false);
+        }
         Message::PositionClicked => {
             // Pre-fill the inputs with the stored values so re-opening the
             // dialog shows the saved position.
@@ -839,7 +883,7 @@ fn update(state: &mut Halvora, message: Message) {
                 {
                     s.mark_ready();
                 }
-                return;
+                return Task::none();
             }
             // Record the latest size and when it arrived. The actual scale
             // factor is applied later by ResizePoll once the events settle,
@@ -895,6 +939,8 @@ fn update(state: &mut Halvora, message: Message) {
             );
         }
     }
+
+    Task::none()
 }
 
 fn view(state: &Halvora) -> Element<'_, Message> {
@@ -959,6 +1005,10 @@ fn view(state: &Halvora) -> Element<'_, Message> {
         if let Some(opacity) = fade_in_opacity {
             display = fade_overlay(display, opacity);
         }
+    }
+    if state.show_brass_tacks_dialog {
+        let overlay = brass_tacks_dialog::view(state.live_price, state.sp500_latest);
+        display = iced::widget::stack(vec![display, mouse_area(overlay).into()]).into();
     }
     if state.show_about_dialog {
         let overlay = about_dialog::view();

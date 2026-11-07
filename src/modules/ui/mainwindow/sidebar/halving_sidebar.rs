@@ -140,6 +140,19 @@ pub fn view<'a>(
         // Spacer
         children.push(iced::widget::space().height(Length::Fixed(sp(8.0))).into());
 
+        // Brass Tacks button — same padding & width as the YoY button, no P/L tint
+        children.push(
+            Row::with_children(vec![
+                crate::modules::ui::mainwindow::sidebar::brass_tacks::view(),
+            ])
+            .padding(iced::Padding::new(0.0).left(sp(21.0)).right(sp(21.0)))
+            .width(Length::Fill)
+            .into(),
+        );
+
+        // Small spacer between the Brass Tacks and YoY buttons
+        children.push(iced::widget::space().height(Length::Fixed(sp(4.0))).into());
+
         // YoY button — same padding & width as grid rows for centering
         children.push(
             Row::with_children(vec![yoy_button(yoy_selected, yoy_pl_sign)])

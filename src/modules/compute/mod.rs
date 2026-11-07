@@ -1,3 +1,4 @@
+pub mod brass_tacks;
 pub mod coins_issued;
 pub mod halving_eta;
 pub mod halving_period;

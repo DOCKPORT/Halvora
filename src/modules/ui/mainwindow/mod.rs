@@ -1,6 +1,7 @@
 pub mod about_dialog;
 pub mod app_icon;
 pub mod application;
+pub mod brass_tacks_dialog;
 pub mod calmar_dialog;
 pub mod dashboard_layout;
 pub mod db_accessor;
