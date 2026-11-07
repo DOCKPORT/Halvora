@@ -102,10 +102,7 @@ fn outperformance_parts(delta: Option<f64>) -> (String, String) {
 /// fetched S&P 500 value. The start prices and the start date are constants.
 /// The caller stacks this on top of the main content (wrapped in a
 /// `mouse_area`) so the modal blocks interaction behind it.
-pub fn view<'a>(
-    btc_current: Option<f64>,
-    sp500_current: Option<f64>,
-) -> Element<'a, Message> {
+pub fn view<'a>(btc_current: Option<f64>, sp500_current: Option<f64>) -> Element<'a, Message> {
     let btc_start = brass_tacks::BTC_START_VALUE;
     let sp500_start = brass_tacks::SP500_START_VALUE;
 
@@ -126,11 +123,20 @@ pub fn view<'a>(
             .size(sp(15.0))
             .color(Color::WHITE)
             .font(FONT),
-        text("\u{2500}").size(sp(14.0)).color(Color::WHITE).font(FONT),
+        text("\u{2500}")
+            .size(sp(14.0))
+            .color(Color::WHITE)
+            .font(FONT),
         asset_block("Bitcoin", btc_start, btc_current, btc_pct),
-        text("\u{2500}").size(sp(14.0)).color(Color::WHITE).font(FONT),
+        text("\u{2500}")
+            .size(sp(14.0))
+            .color(Color::WHITE)
+            .font(FONT),
         asset_block("S&P 500", sp500_start, sp500_current, sp500_pct),
-        text("\u{2500}").size(sp(14.0)).color(Color::WHITE).font(FONT),
+        text("\u{2500}")
+            .size(sp(14.0))
+            .color(Color::WHITE)
+            .font(FONT),
         text(outcome_label)
             .size(sp(18.0))
             .color(Color::WHITE)
