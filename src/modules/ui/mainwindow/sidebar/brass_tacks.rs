@@ -42,7 +42,7 @@ fn button_style(status: button::Status) -> button::Style {
 /// neutral grey fill. A press emits `Message::BrassTacksSelected`.
 pub fn view<'a>() -> Element<'a, Message> {
     button(
-        text("Brass Tacks")
+        text("Brass-Tacks")
             .size(sp(16.0))
             .width(Length::Shrink)
             .center()
